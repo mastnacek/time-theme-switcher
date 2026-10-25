@@ -24,10 +24,10 @@
     ]
   },
   "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
-    "@earendil-works/pi-agent-core": "*",
     "typebox": "*"
   },
   "homepage": "https://github.com/mastnacek/time-theme-switcher#readme",
@@ -39,6 +39,11 @@
     "url": "https://github.com/mastnacek/time-theme-switcher/issues"
   },
   "scripts": {
-    "test": "node --test test/**/*.test.ts"
+    "test": "node --import ./test/register-jiti.mjs --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "5.9"
   }
 }

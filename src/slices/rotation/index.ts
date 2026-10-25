@@ -3,7 +3,7 @@
  * Maps solar times to PiTUI theme names.
  */
 
-import { computeSolarTimes, solarElevation } from "../../shared/solar";
+import { computeSolarTimes, solarElevation } from "../../shared/solar.ts";
 
 export type TimeTheme = "dawn" | "day" | "dusk" | "night";
 
