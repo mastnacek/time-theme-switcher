@@ -1,0 +1,44 @@
+{
+  "name": "time-theme-switcher",
+  "version": "1.0.0",
+  "description": "Solar-elevation-based Pi theme rotation (dawn/day/dusk/night) for the pi coding agent.",
+  "type": "module",
+  "license": "MIT",
+  "author": "jara",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "theme",
+    "solar",
+    "circadian"
+  ],
+  "files": [
+    "README.md",
+    "index.ts",
+    "src",
+    "package.json"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "typebox": "*"
+  },
+  "homepage": "https://github.com/mastnacek/time-theme-switcher#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mastnacek/time-theme-switcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mastnacek/time-theme-switcher/issues"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.ts"
+  }
+}
