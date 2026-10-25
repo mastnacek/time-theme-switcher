@@ -1,84 +1,187 @@
 /**
- * Settings slice for time-theme-switcher.
- * Reads/writes the user config in the global config file
- * (§5 SKILL.md: ~/.pi/agent/<plugin>.json), falling back to Prague defaults.
- * The Settings shape itself lives in src/shared/settings.ts.
+ * Settings slice for time-theme-switcher — global config per SKILL.md §5
+ * (~/.pi/agent/<plugin>.json).
+ *
+ * Configuration-management pattern:
+ * - SCHEMA below is the single source of truth for keys, types and defaults.
+ * - Sanitization is PER FIELD: a corrupt value falls back to its own default
+ *   while valid siblings survive (never an all-or-nothing reset).
+ * - All disk I/O goes through a SettingsStore (repository pattern) built by
+ *   createSettingsStore(); the path is injectable so tests never touch the
+ *   real home directory.
+ * - Saves are atomic (tmp file + rename) — a crash mid-write cannot leave a
+ *   truncated config behind.
+ * - Loads self-heal: when the sanitized settings differ from the file on
+ *   disk (e.g. keys added by a plugin upgrade), the upgraded file is
+ *   persisted. A syntactically corrupt file is never overwritten — the
+ *   user's data stays on disk for manual repair.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { DEFAULT_SLOT_THEMES, SETTINGS_DEFAULTS, type Settings } from "../../shared/settings.ts";
+import {
+  DEFAULT_SLOT_THEMES,
+  SETTINGS_DEFAULTS,
+  type Settings,
+  type SlotThemes,
+} from "../../shared/settings.ts";
 
 /** Global config path per §5 SKILL.md. */
 export const CONFIG_PATH = join(homedir(), ".pi", "agent", "time-theme-switcher.json");
 
+/** One config field: validator + default + optional nested-object merge. */
+interface FieldSpec<T> {
+  readonly isValid: (value: unknown) => value is T;
+  readonly defaultValue: T;
+  /** Merge a possibly partial raw value over the base (nested objects). */
+  readonly merge?: (base: T, raw: unknown) => T;
+}
+
+const isBoolean = (v: unknown): v is boolean => typeof v === "boolean";
+const isFiniteNumber = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v);
+const isString = (v: unknown): v is string => typeof v === "string";
+
 const SLOT_KEYS = ["dawn", "day", "dusk", "night"] as const;
 
-/** `themes` may be a partial per-slot object in hand-edited configs. */
-function isValidThemes(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  return SLOT_KEYS.every((key) => v[key] === undefined || typeof v[key] === "string");
+/** Per-slot merge: each valid string assignment wins, the rest keep base. */
+function mergeThemes(base: SlotThemes, raw: unknown): SlotThemes {
+  const out = { ...base };
+  if (typeof raw !== "object" || raw === null) return out;
+  const source = raw as Record<string, unknown>;
+  for (const key of SLOT_KEYS) {
+    const value = source[key];
+    if (typeof value === "string" && value.length > 0) out[key] = value;
+  }
+  return out;
 }
 
-function isValid(value: unknown): value is Partial<Settings> {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  return (
-    (v.enabled === undefined || typeof v.enabled === "boolean") &&
-    (v.latitude === undefined || typeof v.latitude === "number") &&
-    (v.longitude === undefined || typeof v.longitude === "number") &&
-    (v.timezone === undefined || typeof v.timezone === "string") &&
-    (v.lang === undefined || typeof v.lang === "string") &&
-    (v.themes === undefined || isValidThemes(v.themes))
-  );
-}
+/** Single source of truth: every Settings key with validator + default. */
+const SCHEMA: { [K in keyof Settings]: FieldSpec<Settings[K]> } = {
+  enabled: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.enabled },
+  latitude: { isValid: isFiniteNumber, defaultValue: SETTINGS_DEFAULTS.latitude },
+  longitude: { isValid: isFiniteNumber, defaultValue: SETTINGS_DEFAULTS.longitude },
+  timezone: { isValid: isString, defaultValue: SETTINGS_DEFAULTS.timezone },
+  lang: { isValid: isString, defaultValue: SETTINGS_DEFAULTS.lang },
+  themes: {
+    isValid: (v): v is SlotThemes => typeof v === "object" && v !== null,
+    defaultValue: SETTINGS_DEFAULTS.themes,
+    merge: mergeThemes,
+  },
+};
 
 /** Fresh defaults copy (nested `themes` must not be a shared reference). */
-function defaults(): Settings {
+function freshDefaults(): Settings {
   return { ...SETTINGS_DEFAULTS, themes: { ...DEFAULT_SLOT_THEMES } };
 }
 
-/**
- * Load settings. Reads ~/.pi/agent/time-theme-switcher.json if it exists,
- * merging over the defaults; writes the defaults on first run so the user has
- * a file to edit. Any read/parse error falls back to defaults. Older config
- * files without `enabled`/`lang`/`themes` pick up the defaults (previous
- * behaviour); a partial `themes` object merges per slot.
- */
-export function getSettings(): Settings {
-  try {
-    if (!existsSync(CONFIG_PATH)) {
-      const fresh = defaults();
-      mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-      writeFileSync(CONFIG_PATH, JSON.stringify(fresh, null, 2) + "\n", "utf8");
-      return fresh;
-    }
-    const parsed: unknown = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
-    if (!isValid(parsed)) return defaults();
-    return {
-      ...defaults(),
-      ...parsed,
-      themes: { ...DEFAULT_SLOT_THEMES, ...(parsed.themes ?? {}) },
-    };
-  } catch {
-    return defaults();
-  }
+/** Validate one field against its spec (generic, so SCHEMA stays typed). */
+function applySpec<T>(spec: FieldSpec<T>, value: unknown): T {
+  if (spec.merge) return spec.merge(spec.defaultValue, value);
+  return spec.isValid(value) ? value : spec.defaultValue;
 }
 
 /**
- * Merge a partial update into the current settings and persist them.
- * Returns the resulting settings; on write error returns the merged settings
- * anyway so the session keeps working with the new values.
+ * Per-field sanitization: each key is validated on its own; invalid or
+ * missing values fall back to that field's default. Unknown keys are dropped.
  */
-export function saveSettings(update: Partial<Settings>): Settings {
-  const next = { ...getSettings(), ...update };
-  try {
-    mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-    writeFileSync(CONFIG_PATH, JSON.stringify(next, null, 2) + "\n", "utf8");
-  } catch {
-    // Read-only config dir — keep runtime state, just don't persist
+function sanitize(raw: unknown): Settings {
+  const source =
+    typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  return {
+    enabled: applySpec(SCHEMA.enabled, source.enabled),
+    latitude: applySpec(SCHEMA.latitude, source.latitude),
+    longitude: applySpec(SCHEMA.longitude, source.longitude),
+    timezone: applySpec(SCHEMA.timezone, source.timezone),
+    lang: applySpec(SCHEMA.lang, source.lang),
+    themes: applySpec(SCHEMA.themes, source.themes),
+  };
+}
+
+export interface SettingsStore {
+  readonly path: string;
+  /**
+   * Load and sanitize. Persists defaults on first run and upgrades the file
+   * when the sanitized result differs from what is on disk; a corrupt file
+   * is left untouched and reported to stderr.
+   */
+  get(): Settings;
+  /** Merge a partial update over the current settings, persist atomically. */
+  save(update: Partial<Settings>): Settings;
+}
+
+export function createSettingsStore(path: string = CONFIG_PATH): SettingsStore {
+  /** Atomic save: write a sibling tmp file, then rename over the target. */
+  function persist(settings: Settings): void {
+    mkdirSync(dirname(path), { recursive: true });
+    const tmp = `${path}.tmp`;
+    writeFileSync(tmp, JSON.stringify(settings, null, 2) + "\n", "utf8");
+    renameSync(tmp, path);
   }
-  return next;
+
+  function get(): Settings {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(readFileSync(path, "utf8"));
+    } catch {
+      const settings = freshDefaults();
+      if (!existsSync(path)) {
+        // First run: give the user a file to edit.
+        try {
+          persist(settings);
+        } catch {
+          // Read-only config dir — run on in-memory defaults
+        }
+      } else {
+        // Corrupt file: keep the user's data on disk, run on defaults.
+        console.error(`time-theme-switcher: ignoring unreadable config at ${path}`);
+      }
+      return settings;
+    }
+    const settings = sanitize(raw);
+    // Self-heal: persist when the schema moved on (added/renamed keys) or
+    // invalid values were replaced by defaults.
+    if (JSON.stringify(raw) !== JSON.stringify(settings)) {
+      try {
+        persist(settings);
+      } catch {
+        // Read-only config dir — run on in-memory settings
+      }
+    }
+    return settings;
+  }
+
+  function save(update: Partial<Settings>): Settings {
+    const next = sanitize({ ...get(), ...update });
+    try {
+      persist(next);
+    } catch {
+      // Read-only config dir — keep runtime state, just don't persist
+    }
+    return next;
+  }
+
+  return { path, get, save };
+}
+
+// ---------------------------------------------------------------------------
+// Default singleton over the global config path (lazy: importing this module
+// performs no file-system work).
+// ---------------------------------------------------------------------------
+
+let defaultStore: SettingsStore | undefined;
+
+function store(): SettingsStore {
+  return (defaultStore ??= createSettingsStore());
+}
+
+/** Load the global settings (see SettingsStore.get). */
+export function getSettings(): Settings {
+  return store().get();
+}
+
+/** Merge a partial update into the global settings (see SettingsStore.save). */
+export function saveSettings(update: Partial<Settings>): Settings {
+  return store().save(update);
 }

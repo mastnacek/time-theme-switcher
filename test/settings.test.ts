@@ -1,103 +1,118 @@
 /**
- * Settings slice tests: first-run defaults, merge-on-load, persistence and
- * corrupt-config fallback. HOME is redirected to a temp dir BEFORE the module
- * is imported, because CONFIG_PATH is derived from homedir() at module top.
+ * Settings slice tests: first-run defaults, per-field sanitization,
+ * self-healing upgrades, persistence and atomic writes. The store path is
+ * injected (repository pattern), so tests never touch the real home dir.
  */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { after, describe, it } from "node:test";
+import { CONFIG_PATH, createSettingsStore } from "../src/slices/settings/index.ts";
 
-const fakeHome = mkdtempSync(join(tmpdir(), "tts-settings-"));
-process.env.HOME = fakeHome;
+const fakeDir = mkdtempSync(join(tmpdir(), "tts-settings-"));
+const configPath = join(fakeDir, "config.json");
+const store = createSettingsStore(configPath);
 
-// Dynamic import so the module sees the redirected HOME.
-const { CONFIG_PATH, getSettings, saveSettings } = await import(
-  "../src/slices/settings/index.ts"
-);
+const readDisk = () => JSON.parse(readFileSync(configPath, "utf8"));
+
+after(() => {
+  rmSync(fakeDir, { recursive: true, force: true });
+});
 
 describe("settings slice", () => {
-  before(() => {
-    assert.ok(
-      CONFIG_PATH.startsWith(fakeHome),
-      `CONFIG_PATH ${CONFIG_PATH} must live under the redirected HOME`,
-    );
-  });
-
-  after(() => {
-    rmSync(fakeHome, { recursive: true, force: true });
+  it("points the default config path at ~/.pi/agent/time-theme-switcher.json", () => {
+    assert.ok(CONFIG_PATH.endsWith(join(".pi", "agent", "time-theme-switcher.json")));
   });
 
   it("writes defaults on first run and returns them", () => {
-    const settings = getSettings();
+    const settings = store.get();
     assert.equal(settings.enabled, true);
     assert.equal(settings.latitude, 50.0755);
     assert.equal(settings.longitude, 14.4378);
     assert.equal(settings.timezone, "Europe/Prague");
     assert.equal(settings.lang, "en");
-    // The file was created so the user has something to edit.
-    const onDisk = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
-    assert.deepEqual(onDisk, settings);
-  });
-
-  it("merges a partial update and persists it", () => {
-    const next = saveSettings({ enabled: false, latitude: 49.2 });
-    assert.equal(next.enabled, false);
-    assert.equal(next.latitude, 49.2);
-    assert.equal(next.longitude, 14.4378); // untouched
-    const reloaded = getSettings();
-    assert.equal(reloaded.enabled, false);
-    assert.equal(reloaded.latitude, 49.2);
-  });
-
-  it("merges old config files without enabled/lang over the defaults", () => {
-    writeFileSync(
-      CONFIG_PATH,
-      JSON.stringify({ latitude: 10, longitude: 20, timezone: "UTC" }),
-      "utf8",
-    );
-    const settings = getSettings();
-    assert.equal(settings.enabled, true); // default
-    assert.equal(settings.lang, "en"); // default
-    assert.equal(settings.latitude, 10);
-    assert.equal(settings.timezone, "UTC");
-  });
-
-  it("falls back to defaults on corrupt JSON", () => {
-    writeFileSync(CONFIG_PATH, "{ not json", "utf8");
-    const settings = getSettings();
-    assert.equal(settings.enabled, true);
-    assert.equal(settings.latitude, 50.0755);
-  });
-
-  it("falls back to defaults on wrong value types", () => {
-    writeFileSync(CONFIG_PATH, JSON.stringify({ enabled: "yes" }), "utf8");
-    const settings = getSettings();
-    assert.equal(settings.enabled, true);
-  });
-
-  it("ships the recommended slot→theme mapping as defaults", () => {
-    const settings = getSettings();
     assert.deepEqual(settings.themes, {
       dawn: "dawn",
       day: "day",
       dusk: "dusk",
       night: "osaka-jade",
     });
+    // The file was created so the user has something to edit.
+    assert.deepEqual(readDisk(), settings);
+  });
+
+  it("merges a partial update and persists it", () => {
+    const next = store.save({ enabled: false, latitude: 49.2 });
+    assert.equal(next.enabled, false);
+    assert.equal(next.latitude, 49.2);
+    assert.equal(next.longitude, 14.4378); // untouched
+    const reloaded = store.get();
+    assert.equal(reloaded.enabled, false);
+    assert.equal(reloaded.latitude, 49.2);
+  });
+
+  it("upgrades old configs on load: missing keys take defaults, file self-heals", () => {
+    writeFileSync(
+      configPath,
+      JSON.stringify({ latitude: 10, longitude: 20, timezone: "UTC" }),
+      "utf8",
+    );
+    const settings = store.get();
+    assert.equal(settings.enabled, true); // default
+    assert.equal(settings.lang, "en"); // default
+    assert.equal(settings.latitude, 10); // preserved
+    assert.equal(settings.timezone, "UTC"); // preserved
+    assert.deepEqual(settings.themes.dawn, "dawn"); // added by the upgrade
+    // Self-healing: the file on disk now carries the full current schema.
+    const onDisk = readDisk();
+    assert.equal(onDisk.enabled, true);
+    assert.deepEqual(onDisk.themes, settings.themes);
+  });
+
+  it("falls back per field: a corrupt value does not reset valid siblings", () => {
+    writeFileSync(
+      configPath,
+      JSON.stringify({ enabled: "yes", latitude: 49.2 }),
+      "utf8",
+    );
+    const settings = store.get();
+    assert.equal(settings.enabled, true); // invalid → default
+    assert.equal(settings.latitude, 49.2); // valid sibling survives
   });
 
   it("merges a partial themes object per slot over the defaults", () => {
-    writeFileSync(CONFIG_PATH, JSON.stringify({ themes: { night: "dracula" } }), "utf8");
-    const settings = getSettings();
+    writeFileSync(configPath, JSON.stringify({ themes: { night: "dracula" } }), "utf8");
+    const settings = store.get();
     assert.equal(settings.themes.night, "dracula");
     assert.equal(settings.themes.day, "day"); // untouched slot keeps its default
   });
 
-  it("falls back to defaults on an invalid themes value", () => {
-    writeFileSync(CONFIG_PATH, JSON.stringify({ themes: { day: 42 } }), "utf8");
-    const settings = getSettings();
-    assert.equal(settings.themes.day, "day");
+  it("sanitizes themes per slot: invalid assignments fall back individually", () => {
+    writeFileSync(
+      configPath,
+      JSON.stringify({ themes: { day: 42, night: "dracula" } }),
+      "utf8",
+    );
+    const settings = store.get();
+    assert.equal(settings.themes.day, "day"); // invalid → default
+    assert.equal(settings.themes.night, "dracula"); // valid sibling survives
+  });
+
+  it("keeps a corrupt JSON file on disk and runs on in-memory defaults", () => {
+    writeFileSync(configPath, "{ not json", "utf8");
+    const settings = store.get();
+    assert.equal(settings.enabled, true);
+    assert.equal(settings.latitude, 50.0755);
+    // The user's file is never overwritten — it stays for manual repair.
+    assert.equal(readFileSync(configPath, "utf8"), "{ not json");
+  });
+
+  it("writes atomically: no tmp file is left behind after save", () => {
+    writeFileSync(configPath, JSON.stringify({ enabled: true }), "utf8");
+    store.save({ lang: "cs" });
+    assert.equal(existsSync(`${configPath}.tmp`), false);
+    assert.equal(readDisk().lang, "cs");
   });
 });

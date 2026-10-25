@@ -59,9 +59,16 @@ defaults on first run):
 - `themes` — Pi theme name per slot (`dawn`/`day`/`dusk`/`night`); assign any
   theme registered in Pi. The shipped values are the recommended defaults.
 
-Invalid or missing files fall back to the Prague defaults; older configs
-without `enabled`/`lang`/`themes` keep working (missing keys take defaults; a
-partial `themes` object merges per slot).
+Storage mechanics (schema-driven, see `src/slices/settings/index.ts`):
+
+- **Per-field validation** — each key falls back to its own default
+  individually; a corrupt value never resets valid sibling settings.
+- **Self-healing loads** — after a plugin upgrade adds or renames keys, the
+  next load rewrites the file with the full current schema.
+- **Corrupt JSON is preserved** — an unparseable file is never overwritten;
+  the plugin runs on in-memory defaults and logs to stderr.
+- **Atomic writes** — saves go through a tmp file + rename, so a crash
+  mid-write cannot truncate the config.
 
 ## Development
 
