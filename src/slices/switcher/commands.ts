@@ -1,5 +1,5 @@
 /**
- * Switcher slice — /theme-switcher and /theme-toggle slash commands.
+ * Switcher slice — the /theme-switcher slash command.
  * Completions follow the trailing-space contract with lazy parameter
  * completion and current-value annotation (§3 SKILL.md).
  */
