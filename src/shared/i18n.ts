@@ -10,7 +10,6 @@ export type Locale = (typeof LOCALES)[number];
 export interface SwitcherStrings {
   // Command descriptions (completion-menu copy)
   cmdDescription: string;
-  toggleDescription: string;
   // Generic tokens
   on: string;
   off: string;
@@ -54,7 +53,6 @@ export interface SwitcherStrings {
 const STRINGS: Record<Locale, SwitcherStrings> = {
   en: {
     cmdDescription: "Time-based theme rotation: settings, on/off, status",
-    toggleDescription: "Toggle time-based theme rotation on/off",
     on: "on",
     off: "off",
     activeMarker: " · ● ACTIVE",
@@ -93,7 +91,6 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
   },
   cs: {
     cmdDescription: "Časová rotace témat: nastavení, zap/vyp, stav",
-    toggleDescription: "Zapnout/vypnout časovou rotaci témat",
     on: "on",
     off: "off",
     activeMarker: " · ● AKTIVNÍ",

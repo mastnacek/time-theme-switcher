@@ -111,13 +111,4 @@ export function registerCommands(pi: ExtensionAPI, controller: SwitcherControlle
     getArgumentCompletions: (prefix) => complete(controller, prefix),
     handler: (args, ctx) => handleCommand(controller, args.trim(), ctx),
   });
-  pi.registerCommand("theme-toggle", {
-    get description() {
-      return stringsFor(controller.getSettings().lang).toggleDescription;
-    },
-    handler: (_args, ctx) => {
-      controller.setEnabled(!controller.getSettings().enabled, ctx);
-      return Promise.resolve();
-    },
-  });
 }

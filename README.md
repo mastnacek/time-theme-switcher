@@ -25,7 +25,6 @@ must exist in `~/.pi/agent/themes/`.
   - `/theme-switcher on` / `/theme-switcher off` — enable/disable rotation
   - `/theme-switcher status` — show state, current slot and coordinates
   - `/theme-switcher lang en|cs` — switch the plugin's UI language
-- `/theme-toggle` — flip rotation on/off directly
 
 When rotation is switched off, the theme that was active before the rotation
 took over is restored.
