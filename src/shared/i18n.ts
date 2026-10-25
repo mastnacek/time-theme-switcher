@@ -16,6 +16,7 @@ export interface SwitcherStrings {
   activeMarker: string;
   // Notifications
   switchedTo: (label: string) => string;
+  themeApplyFailed: (name: string) => string;
   restoredTheme: (name: string) => string;
   rotationDisabled: string;
   tuiOnly: string;
@@ -37,6 +38,14 @@ export interface SwitcherStrings {
   languageDesc: string;
   slotLabel: string;
   slotDesc: string;
+  // Per-slot theme assignment
+  slotNames: { dawn: string; day: string; dusk: string; night: string };
+  themeRowLabel: (slotLabel: string) => string;
+  themeRowDesc: (defaultName: string) => string;
+  defaultTag: string;
+  pickerTitle: (slotLabel: string) => string;
+  pickerHint: string;
+  invalidTheme: (name: string) => string;
   editHint: string;
   invalidLatitude: string;
   invalidLongitude: string;
@@ -57,6 +66,8 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     off: "off",
     activeMarker: " · ● ACTIVE",
     switchedTo: (label) => `Theme switched to ${label}`,
+    themeApplyFailed: (name) =>
+      `Could not apply theme "${name}" — is it still registered in Pi?`,
     restoredTheme: (name) => `Theme rotation off — restored ${name}`,
     rotationDisabled: "Theme rotation off",
     tuiOnly: "The settings screen requires interactive TUI mode",
@@ -78,6 +89,13 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     languageDesc: "UI language of this plugin",
     slotLabel: "Current slot",
     slotDesc: "Theme slot derived from the current solar elevation (read-only)",
+    slotNames: { dawn: "Dawn", day: "Day", dusk: "Dusk", night: "Night" },
+    themeRowLabel: (slotLabel) => `${slotLabel} theme`,
+    themeRowDesc: (defaultName) => `Recommended default: ${defaultName}`,
+    defaultTag: "(Default)",
+    pickerTitle: (slotLabel) => `Theme for ${slotLabel}`,
+    pickerHint: "↑↓ navigate · Enter select · Esc cancel",
+    invalidTheme: (name) => `Unknown theme "${name}" — keeping the previous value`,
     editHint: "Enter confirms · Esc cancels",
     invalidLatitude: "Invalid latitude — keeping the previous value",
     invalidLongitude: "Invalid longitude — keeping the previous value",
@@ -95,6 +113,8 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     off: "off",
     activeMarker: " · ● AKTIVNÍ",
     switchedTo: (label) => `Téma přepnuto na ${label}`,
+    themeApplyFailed: (name) =>
+      `Téma "${name}" se nepodařilo použít — je stále registrované v Pi?`,
     restoredTheme: (name) => `Rotace témat vypnuta — obnoveno ${name}`,
     rotationDisabled: "Rotace témat vypnuta",
     tuiOnly: "Obrazovka nastavení vyžaduje interaktivní režim TUI",
@@ -116,6 +136,13 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     languageDesc: "Jazyk uživatelského rozhraní tohoto pluginu",
     slotLabel: "Aktuální slot",
     slotDesc: "Slot tématu odvozený z aktuální výšky Slunce (jen ke čtení)",
+    slotNames: { dawn: "Svítání", day: "Den", dusk: "Soumrak", night: "Noc" },
+    themeRowLabel: (slotLabel) => `Téma: ${slotLabel}`,
+    themeRowDesc: (defaultName) => `Doporučená výchozí hodnota: ${defaultName}`,
+    defaultTag: "(Výchozí)",
+    pickerTitle: (slotLabel) => `Téma pro: ${slotLabel}`,
+    pickerHint: "↑↓ pohyb · Enter potvrdí · Esc zruší",
+    invalidTheme: (name) => `Neznámé téma "${name}" — ponechávám původní hodnotu`,
     editHint: "Enter potvrdí · Esc zruší",
     invalidLatitude: "Neplatná zeměpisná šířka — ponechávám původní hodnotu",
     invalidLongitude: "Neplatná zeměpisná délka — ponechávám původní hodnotu",

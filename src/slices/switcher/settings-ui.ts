@@ -5,16 +5,21 @@
  */
 
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
+import { getSelectListTheme, getSettingsListTheme } from "@earendil-works/pi-coding-agent";
 import {
   Container,
   Input,
+  SelectList,
   SettingsList,
   truncateToWidth,
+  type SelectItem,
   type SettingItem,
 } from "@earendil-works/pi-tui";
 import { LOCALES, stringsFor } from "../../shared/i18n.ts";
+import type { SlotThemes } from "../../shared/settings.ts";
 import type { SwitcherController } from "./controller.ts";
+
+const SLOT_IDS = ["dawn", "day", "dusk", "night"] as const;
 
 function textSubmenu(title: string, hint: string): NonNullable<SettingItem["submenu"]> {
   return (currentValue, done) => {
@@ -32,6 +37,52 @@ function textSubmenu(title: string, hint: string): NonNullable<SettingItem["subm
       ],
       invalidate() {},
       handleInput: (data: string) => input.handleInput(data),
+    };
+  };
+}
+
+/**
+ * Theme picker submenu for one slot: a SelectList over every theme registered
+ * in Pi (ctx.ui.getAllThemes). The slot's recommended default is tagged
+ * "(Default)" in the label; the current assignment gets a ✓ (§3 SKILL.md).
+ */
+function themePickerSubmenu(
+  controller: SwitcherController,
+  ctx: ExtensionCommandContext,
+  slot: (typeof SLOT_IDS)[number],
+): NonNullable<SettingItem["submenu"]> {
+  return (currentValue, done) => {
+    const s = stringsFor(controller.getSettings().lang);
+    const defaultName = controller.getDefaultThemes()[slot];
+    const names = ctx.ui
+      .getAllThemes()
+      .map((t) => t.name)
+      .sort((a, b) => a.localeCompare(b));
+    const items: SelectItem[] = names.map((name) => ({
+      value: name,
+      label:
+        name +
+        (name === currentValue ? " ✓" : "") +
+        (name === defaultName ? ` ${s.defaultTag}` : ""),
+      description: name === defaultName ? s.themeRowDesc(defaultName) : undefined,
+    }));
+    const select = new SelectList(
+      items,
+      Math.min(items.length, 10),
+      getSelectListTheme(),
+    );
+    const currentIndex = names.indexOf(currentValue);
+    if (currentIndex >= 0) select.setSelectedIndex(currentIndex);
+    select.onSelect = (item) => done(item.value);
+    select.onCancel = () => done();
+    return {
+      render: (width: number) => [
+        truncateToWidth(` ${s.pickerTitle(s.slotNames[slot])}`, width),
+        ...select.render(width),
+        truncateToWidth(` ${s.pickerHint}`, width),
+      ],
+      invalidate: () => select.invalidate(),
+      handleInput: (data: string) => select.handleInput(data),
     };
   };
 }
@@ -85,9 +136,20 @@ function onSettingChange(
       controller.savePrefs({ lang: value });
       ctx.ui.notify(stringsFor(controller.getSettings().lang).langSet(value));
       return;
-    default:
-      // Unknown setting id (e.g. the read-only "slot" row): ignore.
+    default: {
+      if (!id.startsWith("theme:")) return; // e.g. the read-only "slot" row
+      const slot = id.slice("theme:".length) as keyof SlotThemes;
+      const name = value.trim();
+      const known = ctx.ui.getAllThemes().some((t) => t.name === name);
+      if (!name || !known) {
+        ctx.ui.notify(s.invalidTheme(name || "?"), "error");
+        list.updateValue(id, controller.getSettings().themes[slot]);
+        return;
+      }
+      controller.savePrefs({ themes: { ...controller.getSettings().themes, [slot]: name } });
+      list.updateValue(id, name);
       return;
+    }
   }
 }
 
@@ -128,6 +190,13 @@ export async function openSettingsUi(
         currentValue: settings.timezone,
         submenu: textSubmenu(s.timezoneLabel, s.editHint),
       },
+      ...SLOT_IDS.map((slot) => ({
+        id: `theme:${slot}`,
+        label: s.themeRowLabel(s.slotNames[slot]),
+        description: s.themeRowDesc(controller.getDefaultThemes()[slot]),
+        currentValue: settings.themes[slot],
+        submenu: themePickerSubmenu(controller, ctx, slot),
+      })),
       {
         id: "lang",
         label: s.languageLabel,

@@ -6,7 +6,7 @@
 
 import type { ExtensionContext, ExtensionUIContext, Theme } from "@earendil-works/pi-coding-agent";
 import { stringsFor } from "../../shared/i18n.ts";
-import type { Settings } from "../../shared/settings.ts";
+import type { Settings, SlotThemes } from "../../shared/settings.ts";
 
 export interface SwitcherDeps<Slot extends string> {
   getSettings(): Settings;
@@ -29,6 +29,8 @@ export interface SwitcherController {
   savePrefs(update: Partial<Settings>): Settings;
   /** Display label of the slot the current time/location maps to. */
   currentSlotLabel(): string;
+  /** Recommended slot→theme mapping (shown as "Default" in the UI). */
+  getDefaultThemes(): Record<string, string>;
 }
 
 const POLL_INTERVAL_MS = 60_000;
@@ -40,7 +42,8 @@ export function createController<Slot extends string>(
   let timer: ReturnType<typeof setInterval> | null = null;
   /** Theme active before rotation took over — restored when switched off. */
   let previousTheme: Theme | undefined;
-  let lastSlot: Slot | undefined;
+  /** Last successfully applied slot+theme, for change detection. */
+  let lastApplied: { slot: Slot; theme: string } | undefined;
   let activeUi: ExtensionUIContext | undefined;
 
   const canTheme = (ui: ExtensionUIContext | undefined): ui is ExtensionUIContext =>
@@ -50,13 +53,22 @@ export function createController<Slot extends string>(
     return deps.getSlotForTime(new Date(), settings.latitude, settings.longitude);
   }
 
+  /** User assignment from settings, falling back to the default mapping. */
+  function themeForSlot(slot: Slot): string {
+    return settings.themes?.[slot as keyof SlotThemes] ?? deps.themeNames[slot];
+  }
+
   function applySlot(ui: ExtensionUIContext): void {
     const slot = currentSlot();
-    if (slot === lastSlot) return;
-    lastSlot = slot;
-    const result = ui.setTheme(deps.themeNames[slot]);
+    const name = themeForSlot(slot);
+    if (lastApplied && lastApplied.slot === slot && lastApplied.theme === name) return;
+    const result = ui.setTheme(name);
+    const s = stringsFor(settings.lang);
     if (result.success) {
-      ui.notify(stringsFor(settings.lang).switchedTo(deps.themeLabels[slot]));
+      lastApplied = { slot, theme: name };
+      ui.notify(s.switchedTo(name));
+    } else {
+      ui.notify(s.themeApplyFailed(name), "error");
     }
   }
 
@@ -73,7 +85,7 @@ export function createController<Slot extends string>(
     activeUi = ui;
     previousTheme ??= ui.theme;
     stopTimer();
-    lastSlot = undefined; // force apply + notify
+    lastApplied = undefined; // force apply + notify
     applySlot(ui);
     timer = setInterval(() => {
       if (canTheme(activeUi)) applySlot(activeUi);
@@ -83,7 +95,7 @@ export function createController<Slot extends string>(
   /** Disable rotation: stop polling and restore the pre-rotation theme. */
   function stop(ui: ExtensionUIContext | undefined): void {
     stopTimer();
-    lastSlot = undefined;
+    lastApplied = undefined;
     const s = stringsFor(settings.lang);
     if (canTheme(ui)) {
       if (previousTheme) {
@@ -102,7 +114,7 @@ export function createController<Slot extends string>(
     handleSessionStart(ctx: ExtensionContext): void {
       settings = deps.getSettings();
       stopTimer();
-      lastSlot = undefined;
+      lastApplied = undefined;
       previousTheme = undefined;
       if (!settings.enabled || !ctx.hasUI) return;
       start(ctx.ui);
@@ -128,9 +140,13 @@ export function createController<Slot extends string>(
 
     savePrefs(update: Partial<Settings>): Settings {
       settings = deps.saveSettings(update);
+      // Re-apply immediately when the assignment for the active slot changed.
+      if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
       return settings;
     },
 
     currentSlotLabel: () => deps.themeLabels[currentSlot()],
+
+    getDefaultThemes: () => ({ ...deps.themeNames }),
   };
 }

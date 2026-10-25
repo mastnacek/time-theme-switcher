@@ -3,6 +3,7 @@
  * Maps solar times to PiTUI theme names.
  */
 
+import { DEFAULT_SLOT_THEMES } from "../../shared/settings.ts";
 import { computeSolarTimes, solarElevation } from "../../shared/solar.ts";
 
 export type TimeTheme = "dawn" | "day" | "dusk" | "night";
@@ -27,13 +28,12 @@ export function getThemeForTime(date: Date, lat: number, lon: number): TimeTheme
   return themeForElevation(elevation);
 }
 
-/** Pi theme file names per slot (terminals-preview.html palettes). */
-export const THEME_NAMES: Record<TimeTheme, string> = {
-  dawn: "dawn",        // Gruvbox Material Soft Dark
-  day: "day",          // Solarized Light
-  dusk: "dusk",        // Catppuccin Macchiato
-  night: "osaka-jade", // Osaka Jade
-};
+/**
+ * Default Pi theme file name per slot — the recommended mapping, labeled
+ * "Default" in the settings UI. Users can assign any registered theme per
+ * slot (Settings.themes); this is only the fallback.
+ */
+export const THEME_NAMES: Record<TimeTheme, string> = DEFAULT_SLOT_THEMES;
 
 /** Theme display names for UI. */
 export const THEME_LABELS: Record<TimeTheme, string> = {

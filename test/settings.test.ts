@@ -77,4 +77,27 @@ describe("settings slice", () => {
     const settings = getSettings();
     assert.equal(settings.enabled, true);
   });
+
+  it("ships the recommended slot→theme mapping as defaults", () => {
+    const settings = getSettings();
+    assert.deepEqual(settings.themes, {
+      dawn: "dawn",
+      day: "day",
+      dusk: "dusk",
+      night: "osaka-jade",
+    });
+  });
+
+  it("merges a partial themes object per slot over the defaults", () => {
+    writeFileSync(CONFIG_PATH, JSON.stringify({ themes: { night: "dracula" } }), "utf8");
+    const settings = getSettings();
+    assert.equal(settings.themes.night, "dracula");
+    assert.equal(settings.themes.day, "day"); // untouched slot keeps its default
+  });
+
+  it("falls back to defaults on an invalid themes value", () => {
+    writeFileSync(CONFIG_PATH, JSON.stringify({ themes: { day: 42 } }), "utf8");
+    const settings = getSettings();
+    assert.equal(settings.themes.day, "day");
+  });
 });

@@ -7,21 +7,23 @@ Time-of-day theme rotation for the [pi coding agent](https://github.com/earendil
 At `session_start` (and every 60 s thereafter) the extension computes the solar
 elevation for your location and maps it to a slot:
 
-| Slot  | Solar elevation      | Theme file    | Palette                    |
+| Slot  | Solar elevation      | Default theme | Palette                    |
 |-------|----------------------|---------------|----------------------------|
 | day   | > -0.833°            | `day`         | Solarized Light            |
 | dawn  | > -6°                | `dawn`        | Gruvbox Material Soft Dark |
 | dusk  | > -12°               | `dusk`        | Catppuccin Macchiato       |
 | night | otherwise            | `osaka-jade`  | Osaka Jade                 |
 
-The theme is applied via `ctx.ui.setTheme()`. The referenced theme JSON files
-must exist in `~/.pi/agent/themes/`.
+The slot→theme assignment is configurable: each slot can use any theme
+registered in Pi (see below). The theme is applied via `ctx.ui.setTheme()`.
 
 ## Commands
 
 - `/theme-switcher` — opens the settings screen (interactive TUI): master
-  On/Off toggle, latitude/longitude/timezone, UI language, and the current
-  slot. Subcommands work without the UI:
+  On/Off toggle, latitude/longitude/timezone, per-slot theme assignment, UI
+  language, and the current slot. Each slot row opens a picker over every
+  theme registered in Pi; the recommended default is tagged **(Default)**.
+  Subcommands work without the UI:
   - `/theme-switcher on` / `/theme-switcher off` — enable/disable rotation
   - `/theme-switcher status` — show state, current slot and coordinates
   - `/theme-switcher lang en|cs` — switch the plugin's UI language
@@ -40,7 +42,13 @@ defaults on first run):
   "latitude": 50.0755,
   "longitude": 14.4378,
   "timezone": "Europe/Prague",
-  "lang": "en"
+  "lang": "en",
+  "themes": {
+    "dawn": "dawn",
+    "day": "day",
+    "dusk": "dusk",
+    "night": "osaka-jade"
+  }
 }
 ```
 
@@ -48,9 +56,12 @@ defaults on first run):
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)
+- `themes` — Pi theme name per slot (`dawn`/`day`/`dusk`/`night`); assign any
+  theme registered in Pi. The shipped values are the recommended defaults.
 
 Invalid or missing files fall back to the Prague defaults; older configs
-without `enabled`/`lang` keep working (both default to on/English).
+without `enabled`/`lang`/`themes` keep working (missing keys take defaults; a
+partial `themes` object merges per slot).
 
 ## Development
 

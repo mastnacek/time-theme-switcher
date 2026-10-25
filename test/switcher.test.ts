@@ -42,6 +42,7 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
     longitude: 14.4378,
     timezone: "Europe/Prague",
     lang: "en",
+    themes: { dawn: "dawn", day: "day", dusk: "dusk", night: "osaka-jade" },
     ...initialSettings,
   };
   return {
@@ -143,5 +144,56 @@ describe("switcher controller", () => {
     const { deps } = makeDeps({ enabled: true }, () => "night");
     const controller = createController(deps);
     assert.equal(controller.currentSlotLabel(), "Osaka Jade");
+  });
+
+  it("applies the theme assigned to the slot instead of the default", () => {
+    const { deps } = makeDeps(
+      {
+        enabled: true,
+        themes: { dawn: "dawn", day: "dracula", dusk: "dusk", night: "osaka-jade" },
+      },
+      () => "day",
+    );
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    controller.handleSessionStart({ hasUI: true, ui } as never);
+    assert.deepEqual(ui.setThemeCalls, ["dracula"]);
+    controller.handleShutdown();
+  });
+
+  it("re-applies immediately when the active slot's assignment changes", () => {
+    const { deps, current } = makeDeps({ enabled: true }, () => "day");
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    controller.handleSessionStart({ hasUI: true, ui } as never);
+    controller.savePrefs({ themes: { ...current().themes, day: "gruvbox-dark" } });
+    assert.deepEqual(ui.setThemeCalls, ["day", "gruvbox-dark"]);
+    controller.handleShutdown();
+  });
+
+  it("does not re-apply when an unrelated preference changes", () => {
+    const { deps } = makeDeps({ enabled: true }, () => "day");
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    controller.handleSessionStart({ hasUI: true, ui } as never);
+    controller.savePrefs({ latitude: 49 });
+    assert.deepEqual(ui.setThemeCalls, ["day"]);
+    controller.handleShutdown();
+  });
+
+  it("notifies an error when the assigned theme cannot be applied", () => {
+    const { deps } = makeDeps({ enabled: true }, () => "day");
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    ui.setTheme = function (theme) {
+      this.setThemeCalls.push(theme);
+      return { success: false };
+    };
+    controller.handleSessionStart({ hasUI: true, ui } as never);
+    assert.ok(
+      ui.notifications.some((n) => n.includes('"day"')),
+      "failure notification names the theme that could not be applied",
+    );
+    controller.handleShutdown();
   });
 });
