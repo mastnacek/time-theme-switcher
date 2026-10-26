@@ -26,7 +26,11 @@ function makeUi(current: FakeTheme): FakeUi {
     setThemeCalls: [],
     notifications: [],
     setTheme(theme) {
-      this.setThemeCalls.push(theme);
+      // Controller passes either a name (registered theme) or an in-memory
+      // Theme instance (bundled palette); record the identity either way.
+      this.setThemeCalls.push(
+        typeof theme === "string" ? theme : (theme as { name?: string }).name,
+      );
       return { success: true };
     },
     notify(message) {
@@ -91,7 +95,7 @@ describe("switcher controller", () => {
     controller.handleSessionStart(ctx);
     controller.setEnabled(false, ctx);
     assert.equal(controller.getSettings().enabled, false);
-    assert.deepEqual(ui.setThemeCalls, ["tts-day", { name: "gruvbox" }]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day", "gruvbox"]);
     assert.ok(
       ui.notifications.some((n) => n.includes("gruvbox")),
       "restore notification mentions the restored theme",
@@ -108,7 +112,7 @@ describe("switcher controller", () => {
     controller.setEnabled(false, ctx);
     controller.setEnabled(true, ctx);
     assert.equal(controller.getSettings().enabled, true);
-    assert.deepEqual(ui.setThemeCalls, ["tts-day", { name: "gruvbox" }, "tts-day"]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day", "gruvbox", "tts-day"]);
     controller.handleShutdown();
   });
 
@@ -186,7 +190,9 @@ describe("switcher controller", () => {
     const controller = createController(deps);
     const ui = makeUi({ name: "gruvbox" });
     ui.setTheme = function (theme) {
-      this.setThemeCalls.push(theme);
+      this.setThemeCalls.push(
+        typeof theme === "string" ? theme : (theme as { name?: string }).name,
+      );
       return { success: false };
     };
     controller.handleSessionStart({ hasUI: true, ui } as never);

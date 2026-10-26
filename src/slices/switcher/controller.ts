@@ -6,6 +6,7 @@
 
 import type { ExtensionContext, ExtensionUIContext, Theme } from "@earendil-works/pi-coding-agent";
 import { stringsFor } from "../../shared/i18n.ts";
+import { resolveBundledTheme } from "../../shared/palettes.ts";
 import type { Settings, SlotThemes } from "../../shared/settings.ts";
 
 export interface SwitcherDeps<Slot extends string> {
@@ -58,11 +59,19 @@ export function createController<Slot extends string>(
     return settings.themes?.[slot as keyof SlotThemes] ?? deps.themeNames[slot];
   }
 
+  /**
+   * Resolve an assignment: a bundled palette becomes an in-memory Theme
+   * instance (never registered in Pi), anything else is applied by name.
+   */
+  function resolveAssignment(name: string): string | Theme {
+    return resolveBundledTheme(name) ?? name;
+  }
+
   function applySlot(ui: ExtensionUIContext): void {
     const slot = currentSlot();
     const name = themeForSlot(slot);
     if (lastApplied && lastApplied.slot === slot && lastApplied.theme === name) return;
-    const result = ui.setTheme(name);
+    const result = ui.setTheme(resolveAssignment(name));
     const s = stringsFor(settings.lang);
     if (result.success) {
       lastApplied = { slot, theme: name };
@@ -101,6 +110,7 @@ export function createController<Slot extends string>(
       if (previousTheme) {
         const restored = previousTheme;
         previousTheme = undefined;
+        // Previous theme may itself have been a bundled in-memory instance.
         const result = ui.setTheme(restored);
         if (result.success) ui.notify(s.restoredTheme(restored.name ?? "?"));
       } else {

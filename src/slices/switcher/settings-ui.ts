@@ -16,6 +16,7 @@ import {
   type SettingItem,
 } from "@earendil-works/pi-tui";
 import { LOCALES, stringsFor } from "../../shared/i18n.ts";
+import { bundledThemeNames } from "../../shared/palettes.ts";
 import type { SlotThemes } from "../../shared/settings.ts";
 import type { SwitcherController } from "./controller.ts";
 
@@ -42,9 +43,11 @@ function textSubmenu(title: string, hint: string): NonNullable<SettingItem["subm
 }
 
 /**
- * Theme picker submenu for one slot: a SelectList over every theme registered
- * in Pi (ctx.ui.getAllThemes). The slot's recommended default is tagged
- * "(Default)" in the label; the current assignment gets a ✓ (§3 SKILL.md).
+ * Theme picker submenu for one slot: a SelectList over every theme the slot
+ * can use — registered Pi themes (ctx.ui.getAllThemes) plus the plugin's
+ * bundled palettes, which are private and never appear in Pi's own lists.
+ * The slot's recommended default is tagged "(Default)" in the label; the
+ * current assignment gets a ✓ (§3 SKILL.md).
  */
 function themePickerSubmenu(
   controller: SwitcherController,
@@ -54,10 +57,12 @@ function themePickerSubmenu(
   return (currentValue, done) => {
     const s = stringsFor(controller.getSettings().lang);
     const defaultName = controller.getDefaultThemes()[slot];
-    const names = ctx.ui
-      .getAllThemes()
-      .map((t) => t.name)
-      .sort((a, b) => a.localeCompare(b));
+    const registered = new Set(
+      ctx.ui.getAllThemes().map((t) => t.name),
+    );
+    const names = [
+      ...new Set([...bundledThemeNames(), ...registered]),
+    ].sort((a, b) => a.localeCompare(b));
     const items: SelectItem[] = names.map((name) => ({
       value: name,
       label:
@@ -140,7 +145,9 @@ function onSettingChange(
       if (!id.startsWith("theme:")) return; // e.g. the read-only "slot" row
       const slot = id.slice("theme:".length) as keyof SlotThemes;
       const name = value.trim();
-      const known = ctx.ui.getAllThemes().some((t) => t.name === name);
+      const known =
+        bundledThemeNames().includes(name) ||
+        ctx.ui.getAllThemes().some((t) => t.name === name);
       if (!name || !known) {
         ctx.ui.notify(s.invalidTheme(name || "?"), "error");
         list.updateValue(id, controller.getSettings().themes[slot]);
