@@ -6,7 +6,7 @@
 
 import type { ExtensionContext, ExtensionUIContext, Theme } from "@earendil-works/pi-coding-agent";
 import { stringsFor } from "../../shared/i18n.ts";
-import { resolveBundledTheme } from "../../shared/palettes.ts";
+import { BUNDLED_PALETTE_FILES, resolveBundledTheme } from "../../shared/palettes.ts";
 import type { Settings, SlotThemes } from "../../shared/settings.ts";
 
 export interface SwitcherDeps<Slot extends string> {
@@ -62,9 +62,18 @@ export function createController<Slot extends string>(
   /**
    * Resolve an assignment: a bundled palette becomes an in-memory Theme
    * instance (never registered in Pi), anything else is applied by name.
+   * A missing non-bundled name falls back to the bundled tts-<name> palette
+   * when one exists — configs written before the tts- prefix (e.g.
+   * "night": "osaka-jade") keep working after a package upgrade.
    */
   function resolveAssignment(name: string): string | Theme {
-    return resolveBundledTheme(name) ?? name;
+    const bundled = resolveBundledTheme(name);
+    if (bundled) return bundled;
+    const files: readonly string[] = BUNDLED_PALETTE_FILES;
+    if (!files.includes(`${name}.json`) && files.includes(`tts-${name}.json`)) {
+      return resolveBundledTheme(`tts-${name}`) ?? name;
+    }
+    return name;
   }
 
   function applySlot(ui: ExtensionUIContext): void {
