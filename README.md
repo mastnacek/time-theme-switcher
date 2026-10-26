@@ -15,37 +15,44 @@ elevation for your location and maps it to a slot:
 | night | otherwise            | `tts-osaka-jade` | Osaka Jade                 |
 
 The slot→theme assignment is configurable: each slot can use any theme
-registered in Pi (see below). The theme is applied via `ctx.ui.setTheme()`.
+registered in Pi, or one of the plugin's bundled palettes (see below). The
+theme is applied via `ctx.ui.setTheme()`.
 
 ## Bundled themes
 
-The palettes above ship **inside the package** (`themes/*.json`, declared under
-`pi.themes` in `package.json`), so `pi install` gives you a working rotation
-with no extra setup — no theme files to copy, no picker round-trip. Pi resolves
-package themes automatically once the package is installed.
+The palettes above ship **inside the package** (`themes/*.json`, listed in
+`files[]`) — but as **private data**, not registered themes. They are NOT
+declared under `pi.themes`, so Pi never loads them: installing the plugin
+brings **zero themes into Pi's theme registry**. Nothing appears in Pi's own
+theme pickers, `/settings`, and nothing can collide with themes in
+`~/.pi/agent/themes/` or `.pi/themes/`.
+
+The plugin builds its palettes as in-memory theme instances at runtime
+(`src/shared/palettes.ts`) and applies them via `ui.setTheme(instance)`, which
+bypasses the name registry entirely. From your point of view the rotation
+still works out of the box — install and go, no theme files to copy.
 
 Five palettes ship: the four slot themes (`tts-dawn`, `tts-day`, `tts-dusk`,
 `tts-night`) plus `tts-osaka-jade`, the night-slot default. `tts-night` is
 bundled but not assigned by default — pick it for any slot if you prefer a
 warm dark night over Osaka Jade.
 
-Every packaged theme carries a `tts-` prefix (`tts-dawn`, `tts-day`,
-`tts-dusk`, `tts-night`, `tts-osaka-jade`). This is deliberate: user theme
-directories (`~/.pi/agent/themes/`, `.pi/themes/`) are scanned **before**
-package resources and win on name collisions. Shipping plain `dawn`/`day`
-names would collide with the same-named files those directories already hold,
-so the prefixed copies stay reachable while your own themes keep precedence.
+Every palette carries a `tts-` prefix (`tts-dawn`, `tts-day`, `tts-dusk`,
+`tts-night`, `tts-osaka-jade`). This keeps the plugin's assignments visually
+distinct from your own same-named themes in the picker.
 
-Because the names are prefixed, nothing in your existing setup changes:
+What this means for you:
 
-- A slot still accepts **any** theme registered in Pi — bundled, user, or
-  built-in. Pick a different theme per slot in `/theme-switcher` or by editing
-  the config; the packaged themes are only the defaults.
-- Want the packaged palette under a name of your own? Copy the JSON out of
-  `themes/` into `~/.pi/agent/themes/<your-name>.json`, change its `name`
-  field, and assign it. Your copy outranks the bundled one.
-- The palettes are plain Pi theme files — no plugin-specific fields — so they
-  also work standalone in any Pi install.
+- Your theme setup is untouched: the plugin registers nothing and overwrites
+  nothing. Your themes in `~/.pi/agent/themes/` and `.pi/themes/` keep full
+  precedence, always.
+- A slot still accepts **any** theme registered in Pi — user or built-in.
+  Pick a different theme per slot in `/theme-switcher` or by editing the
+  config; the bundled palettes are only the defaults.
+- Want a bundled palette as a real registered theme under your own name? Copy
+  the JSON out of `themes/` into `~/.pi/agent/themes/<your-name>.json`, change
+  its `name` field, and assign it. It is a plain Pi theme file — no
+  plugin-specific fields — so it works standalone in any Pi install.
 
 `npm run themes:verify` checks all five files (valid JSON, matching `name`,
 required color keys, resolvable color vars, every slot default reachable).
@@ -54,8 +61,9 @@ required color keys, resolvable color vars, every slot default reachable).
 
 - `/theme-switcher` — opens the settings screen (interactive TUI): master
   On/Off toggle, latitude/longitude/timezone, per-slot theme assignment, UI
-  language, and the current slot. Each slot row opens a picker over every
-  theme registered in Pi; the recommended default is tagged **(Default)**.
+  language, and the current slot. Each slot row opens a picker over the
+  bundled palettes plus every theme registered in Pi; the recommended default
+  is tagged **(Default)**.
   Subcommands work without the UI:
   - `/theme-switcher on` / `/theme-switcher off` — enable/disable rotation
   - `/theme-switcher status` — show state, current slot and coordinates
@@ -89,12 +97,13 @@ defaults on first run):
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)
-- `themes` — Pi theme name per slot (`dawn`/`day`/`dusk`/`night`); assign any
-  theme registered in Pi. The shipped values are the bundled palettes (see
-  [Bundled themes](#bundled-themes)). Configs written by earlier versions keep
-  their own theme names — they keep working as long as those themes are still
-  registered in Pi, and a slot whose theme is missing reports the usual
-  "could not apply" notice until you re-assign it.
+- `themes` — theme name per slot (`dawn`/`day`/`dusk`/`night`); assign any
+  theme registered in Pi, or one of the bundled palettes (`tts-…`, see
+  [Bundled themes](#bundled-themes)). The shipped values are the bundled
+  palettes. Configs written by earlier versions keep their own theme names —
+  they keep working as long as those themes are still registered in Pi (or
+  match a bundled palette name), and a slot whose theme is missing reports the
+  usual "could not apply" notice until you re-assign it.
 
 Storage mechanics (schema-driven, see `src/slices/settings/index.ts`):
 
