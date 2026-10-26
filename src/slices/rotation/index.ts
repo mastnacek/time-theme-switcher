@@ -40,5 +40,5 @@ export const THEME_LABELS: Record<TimeTheme, string> = {
   dawn: "Dawn (Gruvbox Material Soft Dark)",
   day: "Day (Solarized Light)",
   dusk: "Dusk (Catppuccin Macchiato)",
-  night: "Osaka Jade",
+  night: "Night (Osaka Jade)",
 };

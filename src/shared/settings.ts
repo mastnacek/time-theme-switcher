@@ -15,12 +15,20 @@ export interface SlotThemes {
   night: string;
 }
 
-/** Recommended slot→theme mapping (terminals-preview palettes). */
+/**
+ * Recommended slot→theme mapping. These are the palettes shipped with the
+ * plugin (themes/*.json, declared under pi.themes in package.json), so a fresh
+ * install resolves every slot without the user adding theme files.
+ *
+ * The `tts-` prefix keeps the packaged copies distinct from same-named themes
+ * in ~/.pi/agent/themes/ or .pi/themes/ — those outrank package resources and
+ * would otherwise produce a "name collision" diagnostic at startup.
+ */
 export const DEFAULT_SLOT_THEMES: SlotThemes = {
-  dawn: "dawn", // Gruvbox Material Soft Dark
-  day: "day", // Solarized Light
-  dusk: "dusk", // Catppuccin Macchiato
-  night: "osaka-jade", // Osaka Jade
+  dawn: "tts-dawn", // Gruvbox Material Soft Dark
+  day: "tts-day", // Solarized Light
+  dusk: "tts-dusk", // Catppuccin Macchiato
+  night: "tts-osaka-jade", // Osaka Jade
 };
 
 export interface Settings {

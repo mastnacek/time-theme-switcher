@@ -42,7 +42,7 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
     longitude: 14.4378,
     timezone: "Europe/Prague",
     lang: "en",
-    themes: { dawn: "dawn", day: "day", dusk: "dusk", night: "osaka-jade" },
+    themes: { dawn: "tts-dawn", day: "tts-day", dusk: "tts-dusk", night: "tts-osaka-jade" },
     ...initialSettings,
   };
   return {
@@ -53,7 +53,7 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
         return { ...settings };
       },
       getSlotForTime: () => slot(),
-      themeNames: { day: "day", night: "osaka-jade" } as Record<string, string>,
+      themeNames: { day: "tts-day", night: "tts-osaka-jade" } as Record<string, string>,
       themeLabels: { day: "Day (Solarized Light)", night: "Osaka Jade" } as Record<
         string,
         string
@@ -69,7 +69,7 @@ describe("switcher controller", () => {
     const controller = createController(deps);
     const ui = makeUi({ name: "gruvbox" });
     controller.handleSessionStart({ hasUI: true, ui } as never);
-    assert.deepEqual(ui.setThemeCalls, ["day"]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day"]);
     assert.equal(ui.notifications.length, 1);
     controller.handleShutdown();
   });
@@ -91,7 +91,7 @@ describe("switcher controller", () => {
     controller.handleSessionStart(ctx);
     controller.setEnabled(false, ctx);
     assert.equal(controller.getSettings().enabled, false);
-    assert.deepEqual(ui.setThemeCalls, ["day", { name: "gruvbox" }]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day", { name: "gruvbox" }]);
     assert.ok(
       ui.notifications.some((n) => n.includes("gruvbox")),
       "restore notification mentions the restored theme",
@@ -108,7 +108,7 @@ describe("switcher controller", () => {
     controller.setEnabled(false, ctx);
     controller.setEnabled(true, ctx);
     assert.equal(controller.getSettings().enabled, true);
-    assert.deepEqual(ui.setThemeCalls, ["day", { name: "gruvbox" }, "day"]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day", { name: "gruvbox" }, "tts-day"]);
     controller.handleShutdown();
   });
 
@@ -121,10 +121,10 @@ describe("switcher controller", () => {
       const ui = makeUi({ name: "gruvbox" });
       controller.handleSessionStart({ hasUI: true, ui } as never);
       mock.timers.tick(60_000);
-      assert.deepEqual(ui.setThemeCalls, ["day"], "unchanged slot must not re-apply");
+      assert.deepEqual(ui.setThemeCalls, ["tts-day"], "unchanged slot must not re-apply");
       slot = "night";
       mock.timers.tick(60_000);
-      assert.deepEqual(ui.setThemeCalls, ["day", "osaka-jade"]);
+      assert.deepEqual(ui.setThemeCalls, ["tts-day", "tts-osaka-jade"]);
       controller.handleShutdown();
     } finally {
       mock.timers.reset();
@@ -150,7 +150,7 @@ describe("switcher controller", () => {
     const { deps } = makeDeps(
       {
         enabled: true,
-        themes: { dawn: "dawn", day: "dracula", dusk: "dusk", night: "osaka-jade" },
+        themes: { dawn: "tts-dawn", day: "dracula", dusk: "tts-dusk", night: "tts-osaka-jade" },
       },
       () => "day",
     );
@@ -167,7 +167,7 @@ describe("switcher controller", () => {
     const ui = makeUi({ name: "gruvbox" });
     controller.handleSessionStart({ hasUI: true, ui } as never);
     controller.savePrefs({ themes: { ...current().themes, day: "gruvbox-dark" } });
-    assert.deepEqual(ui.setThemeCalls, ["day", "gruvbox-dark"]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day", "gruvbox-dark"]);
     controller.handleShutdown();
   });
 
@@ -177,7 +177,7 @@ describe("switcher controller", () => {
     const ui = makeUi({ name: "gruvbox" });
     controller.handleSessionStart({ hasUI: true, ui } as never);
     controller.savePrefs({ latitude: 49 });
-    assert.deepEqual(ui.setThemeCalls, ["day"]);
+    assert.deepEqual(ui.setThemeCalls, ["tts-day"]);
     controller.handleShutdown();
   });
 
@@ -191,7 +191,7 @@ describe("switcher controller", () => {
     };
     controller.handleSessionStart({ hasUI: true, ui } as never);
     assert.ok(
-      ui.notifications.some((n) => n.includes('"day"')),
+      ui.notifications.some((n) => n.includes('"tts-day"')),
       "failure notification names the theme that could not be applied",
     );
     controller.handleShutdown();

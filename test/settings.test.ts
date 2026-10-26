@@ -34,10 +34,10 @@ describe("settings slice", () => {
     assert.equal(settings.timezone, "Europe/Prague");
     assert.equal(settings.lang, "en");
     assert.deepEqual(settings.themes, {
-      dawn: "dawn",
-      day: "day",
-      dusk: "dusk",
-      night: "osaka-jade",
+      dawn: "tts-dawn",
+      day: "tts-day",
+      dusk: "tts-dusk",
+      night: "tts-osaka-jade",
     });
     // The file was created so the user has something to edit.
     assert.deepEqual(readDisk(), settings);
@@ -64,7 +64,7 @@ describe("settings slice", () => {
     assert.equal(settings.lang, "en"); // default
     assert.equal(settings.latitude, 10); // preserved
     assert.equal(settings.timezone, "UTC"); // preserved
-    assert.deepEqual(settings.themes.dawn, "dawn"); // added by the upgrade
+    assert.deepEqual(settings.themes.dawn, "tts-dawn"); // added by the upgrade
     // Self-healing: the file on disk now carries the full current schema.
     const onDisk = readDisk();
     assert.equal(onDisk.enabled, true);
@@ -86,7 +86,7 @@ describe("settings slice", () => {
     writeFileSync(configPath, JSON.stringify({ themes: { night: "dracula" } }), "utf8");
     const settings = store.get();
     assert.equal(settings.themes.night, "dracula");
-    assert.equal(settings.themes.day, "day"); // untouched slot keeps its default
+    assert.equal(settings.themes.day, "tts-day"); // untouched slot keeps its default
   });
 
   it("sanitizes themes per slot: invalid assignments fall back individually", () => {
@@ -96,7 +96,7 @@ describe("settings slice", () => {
       "utf8",
     );
     const settings = store.get();
-    assert.equal(settings.themes.day, "day"); // invalid → default
+    assert.equal(settings.themes.day, "tts-day"); // invalid → default
     assert.equal(settings.themes.night, "dracula"); // valid sibling survives
   });
 
