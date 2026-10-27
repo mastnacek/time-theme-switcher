@@ -1,7 +1,7 @@
 /** Herdr multiplexer theme synchronization tests: slot mapping, env detection, binary resolution, and sync behavior. */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -115,10 +115,14 @@ describe("syncHerdrTheme", () => {
     const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
     const configPath = join(dir, "config.toml");
     try {
+      // Inside Herdr a missing config is created; pinned so the result does
+      // not depend on whether the tests themselves run inside Herdr.
+      const env = { HERDR_ENV: "1" };
       const res = syncHerdrTheme("solarized-light", {
         configPath,
         sidebarBg: "#fdf6e3",
         reloadServer: false,
+        env,
       });
       assert.equal(res.updated, true);
       assert.equal(res.herdrTheme, "solarized-light");
@@ -126,11 +130,17 @@ describe("syncHerdrTheme", () => {
       const parsed = parse(readFileSync(configPath, "utf8")) as any;
       assert.equal(parsed.theme?.name, "solarized-light");
       assert.equal(parsed.theme?.custom?.sidebar_bg, "#fdf6e3");
+      assert.deepEqual(
+        readdirSync(dir).filter((f) => f.endsWith(".tmp")),
+        [],
+        "atomic write leaves no temp file behind",
+      );
 
       const res2 = syncHerdrTheme("solarized-light", {
         configPath,
         sidebarBg: "#fdf6e3",
         reloadServer: false,
+        env,
       });
       assert.equal(res2.updated, false);
       assert.equal(res2.autoSwitchDisabled, false);
@@ -192,11 +202,32 @@ describe("syncHerdrTheme", () => {
     }
   });
 
-  it("reloads server even when running outside Herdr environment", () => {
+  it("skips everything when there is no Herdr: no config, not inside Herdr", () => {
     const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
     const configPath = join(dir, "config.toml");
     const executedCommands: any[] = [];
     try {
+      const mockExecFile = ((bin: string, args: string[]) => {
+        executedCommands.push({ bin, args });
+        return { unref() {} };
+      }) as any;
+
+      const res = syncHerdrTheme("nord", { configPath, env: {}, execFileFn: mockExecFile });
+      assert.equal(res.skipped, true);
+      assert.equal(res.updated, false);
+      assert.equal(existsSync(configPath), false, "must not create a Herdr config");
+      assert.equal(executedCommands.length, 0, "must not spawn a missing herdr binary");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reloads server when Herdr is installed but pi runs outside it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
+    const configPath = join(dir, "config.toml");
+    const executedCommands: any[] = [];
+    try {
+      writeFileSync(configPath, `[theme]\nname = "dracula"\n`, "utf8");
       const env = {};
       const mockExecFile = ((bin: string, args: string[]) => {
         executedCommands.push({ bin, args });

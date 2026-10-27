@@ -4,7 +4,7 @@
  */
 
 import { DEFAULT_SLOT_THEMES } from "../../shared/settings.ts";
-import { computeSolarTimes, solarElevation } from "../../shared/solar.ts";
+import { solarElevation } from "../../shared/solar.ts";
 
 export type TimeTheme = "dawn" | "day" | "dusk" | "night";
 
@@ -13,19 +13,26 @@ export interface RotationResult {
   elevation: number;
 }
 
-/** Map solar elevation to a theme name. */
-export function themeForElevation(elevation: number): TimeTheme {
+/** Look-ahead used to tell a rising sun from a setting one. */
+const TREND_STEP_MS = 5 * 60_000;
+
+/**
+ * Map solar elevation to a slot. Twilight (from nautical dusk/dawn at -12°
+ * to sunrise/sunset at -0.833°) is split by direction, not by depth: a rising
+ * sun means dawn, a setting one dusk — so mornings start with dawn and
+ * evenings end with dusk, each one continuous twilight span.
+ */
+export function themeForElevation(elevation: number, rising: boolean): TimeTheme {
   if (elevation > -0.833) return "day";
-  if (elevation > -6) return "dawn";
-  if (elevation > -12) return "dusk";
+  if (elevation > -12) return rising ? "dawn" : "dusk";
   return "night";
 }
 
 /** Determine current theme from date + location. */
 export function getThemeForTime(date: Date, lat: number, lon: number): TimeTheme {
-  const solar = computeSolarTimes(date, lat, lon);
   const elevation = solarElevation(date, lat, lon);
-  return themeForElevation(elevation);
+  const later = solarElevation(new Date(date.getTime() + TREND_STEP_MS), lat, lon);
+  return themeForElevation(elevation, later > elevation);
 }
 
 /**

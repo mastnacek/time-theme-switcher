@@ -6,7 +6,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -130,6 +130,8 @@ export interface SyncHerdrResult {
   herdrTheme: string;
   sidebarBg?: string;
   autoSwitchDisabled?: boolean;
+  /** True when no Herdr was detected, so nothing was written or spawned. */
+  skipped?: boolean;
   error?: string;
 }
 
@@ -145,6 +147,12 @@ export function syncHerdrTheme(
   const configPath = options.configPath ?? defaultHerdrConfigPath(env);
   const shouldReload = options.reloadServer !== false;
 
+  // No Herdr here: pi does not run inside it and no Herdr config exists.
+  // Creating a config or spawning a missing binary would only leave litter.
+  if (!isHerdr(env) && !existsSync(configPath)) {
+    return { updated: false, herdrTheme: herdrThemeName, skipped: true };
+  }
+
   try {
     let original = "";
     if (existsSync(configPath)) {
@@ -158,7 +166,11 @@ export function syncHerdrTheme(
     );
     if (updatedToml !== original) {
       mkdirSync(dirname(configPath), { recursive: true });
-      writeFileSync(configPath, updatedToml, "utf8");
+      // Atomic replace: every running pi instance syncs on its own timer,
+      // and Herdr must never read a half-written config.
+      const tmp = `${configPath}.${process.pid}.tmp`;
+      writeFileSync(tmp, updatedToml, "utf8");
+      renameSync(tmp, configPath);
     }
 
     if (shouldReload) {

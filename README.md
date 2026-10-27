@@ -37,12 +37,16 @@ Time-of-day theme rotation for the [pi coding agent](https://github.com/earendil
 At `session_start` (and every 60 s thereafter) the extension computes the solar
 elevation for your location and maps it to a slot:
 
-| Slot  | Solar elevation      | Default theme    | Palette                    |
-|-------|----------------------|------------------|----------------------------|
-| day   | > -0.833°            | `tts-day`        | Solarized Light            |
-| dawn  | > -6°                | `tts-dawn`       | Gruvbox Material Soft Dark |
-| dusk  | > -12°               | `tts-dusk`       | Catppuccin Macchiato       |
-| night | otherwise            | `tts-osaka-jade` | Osaka Jade                 |
+| Slot  | Solar elevation                 | Default theme    | Palette                    |
+|-------|---------------------------------|------------------|----------------------------|
+| day   | > -0.833° (sunrise to sunset)   | `tts-day`        | Solarized Light            |
+| dawn  | -12° to -0.833°, sun rising     | `tts-dawn`       | Gruvbox Material Soft Dark |
+| dusk  | -12° to -0.833°, sun setting    | `tts-dusk`       | Catppuccin Macchiato       |
+| night | below -12°                      | `tts-osaka-jade` | Osaka Jade                 |
+
+Twilight is split by the sun's direction, so mornings run night → dawn → day
+and evenings day → dusk → night. In Prague each twilight slot lasts about
+70 minutes in autumn and up to two hours around midsummer.
 
 The slot→theme assignment is configurable: each slot can use any theme
 registered in Pi, or one of the plugin's bundled palettes (see below). The

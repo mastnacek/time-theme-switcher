@@ -17,8 +17,9 @@ export interface SlotThemes {
 
 /**
  * Recommended slot→theme mapping. These are the palettes shipped with the
- * plugin (themes/*.json, declared under pi.themes in package.json), so a fresh
- * install resolves every slot without the user adding theme files.
+ * plugin (themes/*.json, private data built into in-memory themes at runtime —
+ * not registered under pi.themes), so a fresh install resolves every slot
+ * without the user adding theme files.
  *
  * The `tts-` prefix keeps the packaged copies distinct from same-named themes
  * in ~/.pi/agent/themes/ or .pi/themes/ — those outrank package resources and
