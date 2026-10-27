@@ -1,7 +1,8 @@
 /**
  * Switcher slice — Herdr multiplexer theme synchronization.
- * Updates theme name in ~/.config/herdr/config.toml and triggers
- * `herdr server reload-config` to apply changes live.
+ * Updates theme name in the platform Herdr config.toml (%APPDATA%\herdr\config.toml
+ * on Windows, ~/.config/herdr/config.toml on Unix/macOS, or HERDR_CONFIG_PATH)
+ * and triggers `herdr server reload-config` to apply changes live.
  */
 
 import { execFile } from "node:child_process";
@@ -16,8 +17,26 @@ export const DEFAULT_HERDR_THEMES: Record<string, string> = {
   night: "rose-pine",
 };
 
-/** Default config path for Herdr multiplexer: ~/.config/herdr/config.toml */
-export function defaultHerdrConfigPath(): string {
+/**
+ * Default config path for Herdr multiplexer:
+ * 1. HERDR_CONFIG_PATH env var if set.
+ * 2. %APPDATA%\herdr\config.toml on Windows (win32).
+ * 3. $XDG_CONFIG_HOME/herdr/config.toml or ~/.config/herdr/config.toml on Unix / macOS.
+ */
+export function defaultHerdrConfigPath(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  if (env.HERDR_CONFIG_PATH) {
+    return env.HERDR_CONFIG_PATH;
+  }
+  if (platform === "win32") {
+    const appData = env.APPDATA || join(homedir(), "AppData", "Roaming");
+    return join(appData, "herdr", "config.toml");
+  }
+  if (env.XDG_CONFIG_HOME) {
+    return join(env.XDG_CONFIG_HOME, "herdr", "config.toml");
+  }
   return join(homedir(), ".config", "herdr", "config.toml");
 }
 

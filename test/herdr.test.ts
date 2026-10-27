@@ -6,10 +6,44 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
+  defaultHerdrConfigPath,
   resolveHerdrTheme,
   syncHerdrTheme,
   updateTomlTheme,
 } from "../src/slices/switcher/herdr.ts";
+
+describe("defaultHerdrConfigPath", () => {
+  it("prioritizes HERDR_CONFIG_PATH when provided", () => {
+    const custom = "/custom/path/to/herdr.toml";
+    assert.equal(
+      defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "linux"),
+      custom,
+    );
+    assert.equal(
+      defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "win32"),
+      custom,
+    );
+  });
+
+  it("resolves to %APPDATA%\\herdr\\config.toml on Windows", () => {
+    const res = defaultHerdrConfigPath(
+      { APPDATA: "C:\\Users\\test\\AppData\\Roaming" },
+      "win32",
+    );
+    assert.equal(res, join("C:\\Users\\test\\AppData\\Roaming", "herdr", "config.toml"));
+  });
+
+  it("resolves to XDG_CONFIG_HOME or ~/.config/herdr/config.toml on Unix", () => {
+    const resXdg = defaultHerdrConfigPath(
+      { XDG_CONFIG_HOME: "/home/test/.myconfig" },
+      "linux",
+    );
+    assert.equal(resXdg, join("/home/test/.myconfig", "herdr", "config.toml"));
+
+    const resDefault = defaultHerdrConfigPath({}, "linux");
+    assert.match(resDefault, /\.config[/\\]herdr[/\\]config\.toml$/);
+  });
+});
 
 describe("resolveHerdrTheme", () => {
   it("resolves built-in solar slots to corresponding Herdr themes", () => {

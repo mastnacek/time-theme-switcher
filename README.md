@@ -1,3 +1,33 @@
+---
+project:
+  name: "time-theme-switcher"
+  description: "Solar-elevation-based Pi theme rotation (dawn/day/dusk/night) for the pi coding agent, with the palettes bundled."
+  language: "TypeScript"
+  category: ""
+  framework: ""
+  packageManager: "npm"
+  status: "production"
+  quality: "stable"
+  context: "personal"
+  progress: "completed"
+analysis:
+  hasGit: true
+  hasReadme: true
+  mainFiles: ["index.ts"]
+  entryPoints: ["index.ts"]
+  configFiles: ["package.json","tsconfig.json"]
+  testFiles: ["test\\herdr.test.ts","test\\i18n.test.ts","test\\register-jiti.mjs","test\\settings.test.ts","test\\switcher.test.ts","test\\terminal.test.ts","test\\themes.test.ts","test\\verify-themes.mjs"]
+  testFileCount: 8
+  dependencies: []
+  devDependencies: ["@types/node","typescript"]
+  scripts: {"test":"node --import ./test/register-jiti.mjs --test test/*.test.ts","typecheck":"tsc -p tsconfig.json","themes:verify":"node test/verify-themes.mjs"}
+generator:
+  tool: "pi-readme-generator"
+  version: "0.5.0"
+  timestamp: "2026-10-27T07:34:09.454Z"
+---
+
+
 # time-theme-switcher
 
 Time-of-day theme rotation for the [pi coding agent](https://github.com/earendil-works/pi-coding-agent), inspired by f.lux: rotation determines **when** to show a theme, not color temperature inside it. Themes are fixed palettes, never altered by time.
@@ -105,9 +135,10 @@ defaults on first run):
   foreground / text color via OSC 10 (`\x1b]10;#RRGGBB\x07`) to match the
   active theme, and restores default text color with OSC 110 on exit/stop.
 - `syncHerdrTheme` — when `true` (default), synchronizes the theme in the Herdr
-  multiplexer (`~/.config/herdr/config.toml`) to match the active circadian
-  phase (`solarized-light`, `gruvbox`, `catppuccin`, `rose-pine`), notifying
-  the running Herdr server via `herdr server reload-config`.
+  multiplexer configuration (`%APPDATA%\herdr\config.toml` on Windows,
+  `~/.config/herdr/config.toml` on Unix/macOS, or `HERDR_CONFIG_PATH`) to match
+  the active circadian phase (`solarized-light`, `gruvbox`, `catppuccin`, `rose-pine`),
+  notifying the running Herdr server via `herdr server reload-config`.
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)

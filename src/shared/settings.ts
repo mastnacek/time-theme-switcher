@@ -52,7 +52,8 @@ export interface Settings {
    */
   syncTerminalFg: boolean;
   /**
-   * Synchronize Herdr multiplexer theme in ~/.config/herdr/config.toml
+   * Synchronize Herdr multiplexer theme in config.toml
+   * (%APPDATA%\herdr\config.toml on Windows, ~/.config/herdr/config.toml on Unix, or HERDR_CONFIG_PATH)
    * and reload via `herdr server reload-config`.
    */
   syncHerdrTheme: boolean;
