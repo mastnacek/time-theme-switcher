@@ -69,6 +69,7 @@ function resolveVarRefs(
 }
 
 let cache: Map<string, Theme> | undefined;
+let bgCache: Map<string, string> | undefined;
 
 /**
  * Build every bundled palette as an in-memory Theme instance (once per
@@ -125,4 +126,36 @@ export function resolveBundledTheme(name: string): Theme | undefined {
 /** Sorted names of the bundled palettes (for the assignment picker). */
 export function bundledThemeNames(): string[] {
   return [...bundledThemes().keys()].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Background color strings declared by bundled palettes (vars.bg or colors.bg).
+ * Returns raw color strings (hex or okhsl/oklch) resolved through vars.
+ */
+export function bundledThemeBackgrounds(): Map<string, string> {
+  if (bgCache) return bgCache;
+  const map = new Map<string, string>();
+  for (const file of BUNDLED_PALETTE_FILES) {
+    try {
+      const json = JSON.parse(
+        readFileSync(fileURLToPath(new URL(file, THEMES_DIR_URL)), "utf8"),
+      ) as PaletteJson;
+      const vars = json.vars ?? {};
+      const rawBg = vars.bg ?? json.colors.bg ?? json.colors.background;
+      if (rawBg !== undefined && rawBg !== "") {
+        const resolved = String(resolveVarRefs(rawBg, vars));
+        map.set(json.name, resolved);
+      }
+    } catch {
+      // Skip broken files — handled by bundledThemes
+    }
+  }
+  bgCache = map;
+  return map;
+}
+
+/** Resolved background color string for a bundled palette name, or undefined. */
+export function getBundledThemeBg(name: string): string | undefined {
+  const bgs = bundledThemeBackgrounds();
+  return bgs.get(name) ?? bgs.get(`tts-${name}`);
 }

@@ -47,8 +47,10 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
     timezone: "Europe/Prague",
     lang: "en",
     themes: { dawn: "tts-dawn", day: "tts-day", dusk: "tts-dusk", night: "tts-osaka-jade" },
+    syncTerminalBg: true,
     ...initialSettings,
   };
+  const nullStream = { isTTY: false, write: () => true };
   return {
     deps: {
       getSettings: () => ({ ...settings }),
@@ -62,6 +64,7 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
         string,
         string
       >,
+      terminalStream: nullStream as { isTTY?: boolean; write(data: string): unknown } | undefined,
     },
     current: () => settings,
   };
@@ -200,6 +203,86 @@ describe("switcher controller", () => {
       ui.notifications.some((n) => n.includes('"tts-day"')),
       "failure notification names the theme that could not be applied",
     );
+    controller.handleShutdown();
+  });
+
+  it("synchronizes terminal background via OSC 11 on session_start and resets on stop/shutdown", () => {
+    let output = "";
+    const mockStream = {
+      isTTY: true,
+      write: (data: string) => {
+        output += data;
+        return true;
+      },
+    };
+    const { deps } = makeDeps({ enabled: true, syncTerminalBg: true }, () => "day");
+    deps.terminalStream = mockStream;
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    const ctx = { hasUI: true, ui } as never;
+
+    controller.handleSessionStart(ctx);
+    assert.equal(output, "\x1b]11;#fdf6e3\x07");
+
+    output = "";
+    controller.setEnabled(false, ctx);
+    assert.equal(output, "\x1b]111\x07");
+
+    output = "";
+    controller.setEnabled(true, ctx);
+    assert.equal(output, "\x1b]11;#fdf6e3\x07");
+
+    output = "";
+    controller.handleShutdown();
+    assert.equal(output, "\x1b]111\x07");
+  });
+
+  it("does not emit OSC terminal sequences when syncTerminalBg is false", () => {
+    let output = "";
+    const mockStream = {
+      isTTY: true,
+      write: (data: string) => {
+        output += data;
+        return true;
+      },
+    };
+    const { deps } = makeDeps({ enabled: true, syncTerminalBg: false }, () => "day");
+    deps.terminalStream = mockStream;
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    const ctx = { hasUI: true, ui } as never;
+
+    controller.handleSessionStart(ctx);
+    assert.equal(output, "");
+
+    controller.setEnabled(false, ctx);
+    assert.equal(output, "");
+
+    controller.handleShutdown();
+    assert.equal(output, "");
+  });
+
+  it("resets terminal background when syncTerminalBg is toggled to false via savePrefs", () => {
+    let output = "";
+    const mockStream = {
+      isTTY: true,
+      write: (data: string) => {
+        output += data;
+        return true;
+      },
+    };
+    const { deps } = makeDeps({ enabled: true, syncTerminalBg: true }, () => "day");
+    deps.terminalStream = mockStream;
+    const controller = createController(deps);
+    const ui = makeUi({ name: "gruvbox" });
+    const ctx = { hasUI: true, ui } as never;
+
+    controller.handleSessionStart(ctx);
+    assert.equal(output, "\x1b]11;#fdf6e3\x07");
+
+    output = "";
+    controller.savePrefs({ syncTerminalBg: false });
+    assert.equal(output, "\x1b]111\x07");
     controller.handleShutdown();
   });
 });

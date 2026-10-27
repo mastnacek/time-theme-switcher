@@ -33,6 +33,7 @@ describe("settings slice", () => {
     assert.equal(settings.longitude, 14.4378);
     assert.equal(settings.timezone, "Europe/Prague");
     assert.equal(settings.lang, "en");
+    assert.equal(settings.syncTerminalBg, true);
     assert.deepEqual(settings.themes, {
       dawn: "tts-dawn",
       day: "tts-day",
@@ -62,6 +63,7 @@ describe("settings slice", () => {
     const settings = store.get();
     assert.equal(settings.enabled, true); // default
     assert.equal(settings.lang, "en"); // default
+    assert.equal(settings.syncTerminalBg, true); // default
     assert.equal(settings.latitude, 10); // preserved
     assert.equal(settings.timezone, "UTC"); // preserved
     assert.deepEqual(settings.themes.dawn, "tts-dawn"); // added by the upgrade

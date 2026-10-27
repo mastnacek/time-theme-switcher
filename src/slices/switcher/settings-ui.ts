@@ -141,6 +141,10 @@ function onSettingChange(
       controller.savePrefs({ lang: value });
       ctx.ui.notify(stringsFor(controller.getSettings().lang).langSet(value));
       return;
+    case "syncTerminalBg":
+      controller.savePrefs({ syncTerminalBg: value === s.on });
+      list.updateValue(id, value);
+      return;
     default: {
       if (!id.startsWith("theme:")) return; // e.g. the read-only "slot" row
       const slot = id.slice("theme:".length) as keyof SlotThemes;
@@ -174,6 +178,13 @@ export async function openSettingsUi(
         label: s.enabledLabel,
         description: s.enabledDesc,
         currentValue: settings.enabled ? s.on : s.off,
+        values: [s.on, s.off],
+      },
+      {
+        id: "syncTerminalBg",
+        label: s.syncTerminalBgLabel,
+        description: s.syncTerminalBgDesc,
+        currentValue: settings.syncTerminalBg ? s.on : s.off,
         values: [s.on, s.off],
       },
       {

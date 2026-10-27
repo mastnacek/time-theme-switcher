@@ -89,11 +89,16 @@ defaults on first run):
     "day": "tts-day",
     "dusk": "tts-dusk",
     "night": "tts-osaka-jade"
-  }
+  },
+  "syncTerminalBg": true
 }
 ```
 
 - `enabled` — master switch; when `false` no theme is applied
+- `syncTerminalBg` — when `true` (default), synchronizes the host terminal
+  background color via OSC 11 (`\x1b]11;#RRGGBB\x07`) to match the active
+  theme, and restores default background with OSC 111 on exit/stop. Compatible
+  with Windows Terminal, WezTerm, Alacritty, Ghostty, Kitty, iTerm2, etc.
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)
@@ -133,8 +138,9 @@ elsewhere.
 - `index.ts` — thin composition root (lifecycle, subagent guard)
 - `src/slices/rotation/` — solar elevation → theme slot mapping
 - `src/slices/settings/` — global config loading/persistence
-- `src/slices/switcher/` — rotation timer, settings screen, slash commands
-  (`controller.ts`, `settings-ui.ts`, `commands.ts`)
+- `src/slices/switcher/` — rotation timer, settings screen, slash commands,
+  terminal background sync (`controller.ts`, `settings-ui.ts`, `commands.ts`,
+  `terminal.ts`)
 - `src/shared/` — solar math, settings shape, i18n string table (en + cs)
 - `themes/` — the palettes shipped with the package (`tts-*.json`)
 - `test/` — node:test suites for i18n, settings, the controller and the

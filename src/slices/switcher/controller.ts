@@ -8,6 +8,12 @@ import type { ExtensionContext, ExtensionUIContext, Theme } from "@earendil-work
 import { stringsFor } from "../../shared/i18n.ts";
 import { BUNDLED_PALETTE_FILES, resolveBundledTheme } from "../../shared/palettes.ts";
 import type { Settings, SlotThemes } from "../../shared/settings.ts";
+import {
+  resetTerminalBackground,
+  resolveThemeBgHex,
+  syncTerminalBackground,
+  type TerminalStream,
+} from "./terminal.ts";
 
 export interface SwitcherDeps<Slot extends string> {
   getSettings(): Settings;
@@ -17,6 +23,8 @@ export interface SwitcherDeps<Slot extends string> {
   themeNames: Record<Slot, string>;
   /** Display label per slot. */
   themeLabels: Record<Slot, string>;
+  /** Optional stream for OSC terminal sequences (defaults to process.stdout). */
+  terminalStream?: TerminalStream;
 }
 
 export interface SwitcherController {
@@ -84,6 +92,14 @@ export function createController<Slot extends string>(
     const s = stringsFor(settings.lang);
     if (result.success) {
       lastApplied = { slot, theme: name };
+      if (settings.syncTerminalBg) {
+        const bgHex = resolveThemeBgHex(name, ui);
+        if (bgHex) {
+          syncTerminalBackground(bgHex, deps.terminalStream);
+        } else {
+          resetTerminalBackground(deps.terminalStream);
+        }
+      }
       ui.notify(s.switchedTo(name));
     } else {
       ui.notify(s.themeApplyFailed(name), "error");
@@ -114,6 +130,9 @@ export function createController<Slot extends string>(
   function stop(ui: ExtensionUIContext | undefined): void {
     stopTimer();
     lastApplied = undefined;
+    if (settings.syncTerminalBg) {
+      resetTerminalBackground(deps.terminalStream);
+    }
     const s = stringsFor(settings.lang);
     if (canTheme(ui)) {
       if (previousTheme) {
@@ -143,6 +162,9 @@ export function createController<Slot extends string>(
       // No theme restore here: the session is ending, and a following
       // session fires its own session_start.
       stopTimer();
+      if (settings.syncTerminalBg) {
+        resetTerminalBackground(deps.terminalStream);
+      }
       activeUi = undefined;
     },
 
@@ -158,7 +180,16 @@ export function createController<Slot extends string>(
     },
 
     savePrefs(update: Partial<Settings>): Settings {
+      const prevSync = settings.syncTerminalBg;
       settings = deps.saveSettings(update);
+      if (prevSync && !settings.syncTerminalBg) {
+        resetTerminalBackground(deps.terminalStream);
+      } else if (!prevSync && settings.syncTerminalBg && lastApplied) {
+        const bgHex = resolveThemeBgHex(lastApplied.theme, activeUi);
+        if (bgHex) {
+          syncTerminalBackground(bgHex, deps.terminalStream);
+        }
+      }
       // Re-apply immediately when the assignment for the active slot changed.
       if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
       return settings;

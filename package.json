@@ -1,6 +1,6 @@
 {
   "name": "time-theme-switcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Solar-elevation-based Pi theme rotation (dawn/day/dusk/night) for the pi coding agent, with the palettes bundled.",
   "type": "module",
   "license": "MIT",

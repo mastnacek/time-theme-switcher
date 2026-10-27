@@ -69,6 +69,7 @@ const SCHEMA: { [K in keyof Settings]: FieldSpec<Settings[K]> } = {
     defaultValue: SETTINGS_DEFAULTS.themes,
     merge: mergeThemes,
   },
+  syncTerminalBg: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncTerminalBg },
 };
 
 /** Fresh defaults copy (nested `themes` must not be a shared reference). */
@@ -96,6 +97,7 @@ function sanitize(raw: unknown): Settings {
     timezone: applySpec(SCHEMA.timezone, source.timezone),
     lang: applySpec(SCHEMA.lang, source.lang),
     themes: applySpec(SCHEMA.themes, source.themes),
+    syncTerminalBg: applySpec(SCHEMA.syncTerminalBg, source.syncTerminalBg),
   };
 }
 

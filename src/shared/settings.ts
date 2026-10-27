@@ -41,6 +41,11 @@ export interface Settings {
   lang: string;
   /** Pi theme assigned to each solar slot. */
   themes: SlotThemes;
+  /**
+   * Synchronize host terminal background color with the active theme background
+   * using OSC 11 (\x1b]11;#RRGGBB\x07), and reset with OSC 111 (\x1b]111\x07) on exit/stop.
+   */
+  syncTerminalBg: boolean;
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -50,4 +55,5 @@ export const SETTINGS_DEFAULTS: Settings = {
   timezone: "Europe/Prague",
   lang: "en",
   themes: DEFAULT_SLOT_THEMES,
+  syncTerminalBg: true,
 };
