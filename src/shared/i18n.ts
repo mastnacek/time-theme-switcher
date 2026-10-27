@@ -30,6 +30,10 @@ export interface SwitcherStrings {
   enabledDesc: string;
   syncTerminalBgLabel: string;
   syncTerminalBgDesc: string;
+  syncTerminalFgLabel: string;
+  syncTerminalFgDesc: string;
+  syncHerdrThemeLabel: string;
+  syncHerdrThemeDesc: string;
   latitudeLabel: string;
   latitudeDesc: string;
   longitudeLabel: string;
@@ -83,6 +87,10 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     enabledDesc: "Master switch: determine the active theme from solar elevation",
     syncTerminalBgLabel: "Terminal background",
     syncTerminalBgDesc: "Synchronize host terminal background with active theme (OSC 11)",
+    syncTerminalFgLabel: "Terminal text color",
+    syncTerminalFgDesc: "Synchronize host terminal text/font color with active theme (OSC 10)",
+    syncHerdrThemeLabel: "Herdr multiplexer theme",
+    syncHerdrThemeDesc: "Synchronize Herdr theme in config.toml and reload live",
     latitudeLabel: "Latitude",
     latitudeDesc: "Geographic latitude (-90 to 90), e.g. 50.0755 for Prague",
     longitudeLabel: "Longitude",
@@ -132,6 +140,10 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     enabledDesc: "Hlavní vypínač: aktivní téma podle výšky Slunce",
     syncTerminalBgLabel: "Pozadí terminálu",
     syncTerminalBgDesc: "Synchronizovat barvu pozadí terminálu s aktivním tématem (OSC 11)",
+    syncTerminalFgLabel: "Barva textu terminálu",
+    syncTerminalFgDesc: "Synchronizovat barvu písma/textu terminálu s aktivním tématem (OSC 10)",
+    syncHerdrThemeLabel: "Motiv Herdru",
+    syncHerdrThemeDesc: "Synchronizovat motiv multiplexeru Herdr v config.toml a aplikovat za běhu",
     latitudeLabel: "Zeměpisná šířka",
     latitudeDesc: "Zeměpisná šířka (-90 až 90), např. 50.0755 pro Prahu",
     longitudeLabel: "Zeměpisná délka",

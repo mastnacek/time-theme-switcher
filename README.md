@@ -90,7 +90,9 @@ defaults on first run):
     "dusk": "tts-dusk",
     "night": "tts-osaka-jade"
   },
-  "syncTerminalBg": true
+  "syncTerminalBg": true,
+  "syncTerminalFg": true,
+  "syncHerdrTheme": true
 }
 ```
 
@@ -99,6 +101,13 @@ defaults on first run):
   background color via OSC 11 (`\x1b]11;#RRGGBB\x07`) to match the active
   theme, and restores default background with OSC 111 on exit/stop. Compatible
   with Windows Terminal, WezTerm, Alacritty, Ghostty, Kitty, iTerm2, etc.
+- `syncTerminalFg` — when `true` (default), synchronizes the host terminal
+  foreground / text color via OSC 10 (`\x1b]10;#RRGGBB\x07`) to match the
+  active theme, and restores default text color with OSC 110 on exit/stop.
+- `syncHerdrTheme` — when `true` (default), synchronizes the theme in the Herdr
+  multiplexer (`~/.config/herdr/config.toml`) to match the active circadian
+  phase (`solarized-light`, `gruvbox`, `catppuccin`, `rose-pine`), notifying
+  the running Herdr server via `herdr server reload-config`.
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)

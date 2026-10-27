@@ -70,6 +70,8 @@ const SCHEMA: { [K in keyof Settings]: FieldSpec<Settings[K]> } = {
     merge: mergeThemes,
   },
   syncTerminalBg: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncTerminalBg },
+  syncTerminalFg: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncTerminalFg },
+  syncHerdrTheme: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncHerdrTheme },
 };
 
 /** Fresh defaults copy (nested `themes` must not be a shared reference). */
@@ -98,6 +100,8 @@ function sanitize(raw: unknown): Settings {
     lang: applySpec(SCHEMA.lang, source.lang),
     themes: applySpec(SCHEMA.themes, source.themes),
     syncTerminalBg: applySpec(SCHEMA.syncTerminalBg, source.syncTerminalBg),
+    syncTerminalFg: applySpec(SCHEMA.syncTerminalFg, source.syncTerminalFg),
+    syncHerdrTheme: applySpec(SCHEMA.syncHerdrTheme, source.syncHerdrTheme),
   };
 }
 

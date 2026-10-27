@@ -145,6 +145,14 @@ function onSettingChange(
       controller.savePrefs({ syncTerminalBg: value === s.on });
       list.updateValue(id, value);
       return;
+    case "syncTerminalFg":
+      controller.savePrefs({ syncTerminalFg: value === s.on });
+      list.updateValue(id, value);
+      return;
+    case "syncHerdrTheme":
+      controller.savePrefs({ syncHerdrTheme: value === s.on });
+      list.updateValue(id, value);
+      return;
     default: {
       if (!id.startsWith("theme:")) return; // e.g. the read-only "slot" row
       const slot = id.slice("theme:".length) as keyof SlotThemes;
@@ -185,6 +193,20 @@ export async function openSettingsUi(
         label: s.syncTerminalBgLabel,
         description: s.syncTerminalBgDesc,
         currentValue: settings.syncTerminalBg ? s.on : s.off,
+        values: [s.on, s.off],
+      },
+      {
+        id: "syncTerminalFg",
+        label: s.syncTerminalFgLabel,
+        description: s.syncTerminalFgDesc,
+        currentValue: settings.syncTerminalFg ? s.on : s.off,
+        values: [s.on, s.off],
+      },
+      {
+        id: "syncHerdrTheme",
+        label: s.syncHerdrThemeLabel,
+        description: s.syncHerdrThemeDesc,
+        currentValue: settings.syncHerdrTheme ? s.on : s.off,
         values: [s.on, s.off],
       },
       {

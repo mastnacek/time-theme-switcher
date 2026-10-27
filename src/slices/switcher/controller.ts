@@ -10,10 +10,14 @@ import { BUNDLED_PALETTE_FILES, resolveBundledTheme } from "../../shared/palette
 import type { Settings, SlotThemes } from "../../shared/settings.ts";
 import {
   resetTerminalBackground,
+  resetTerminalForeground,
   resolveThemeBgHex,
+  resolveThemeFgHex,
   syncTerminalBackground,
+  syncTerminalForeground,
   type TerminalStream,
 } from "./terminal.ts";
+import { resolveHerdrTheme, syncHerdrTheme } from "./herdr.ts";
 
 export interface SwitcherDeps<Slot extends string> {
   getSettings(): Settings;
@@ -100,6 +104,18 @@ export function createController<Slot extends string>(
           resetTerminalBackground(deps.terminalStream);
         }
       }
+      if (settings.syncTerminalFg) {
+        const fgHex = resolveThemeFgHex(name, ui);
+        if (fgHex) {
+          syncTerminalForeground(fgHex, deps.terminalStream);
+        } else {
+          resetTerminalForeground(deps.terminalStream);
+        }
+      }
+      if (settings.syncHerdrTheme) {
+        const herdrTheme = resolveHerdrTheme(slot, name, ui.theme?.appearance);
+        syncHerdrTheme(herdrTheme);
+      }
       ui.notify(s.switchedTo(name));
     } else {
       ui.notify(s.themeApplyFailed(name), "error");
@@ -133,6 +149,9 @@ export function createController<Slot extends string>(
     if (settings.syncTerminalBg) {
       resetTerminalBackground(deps.terminalStream);
     }
+    if (settings.syncTerminalFg) {
+      resetTerminalForeground(deps.terminalStream);
+    }
     const s = stringsFor(settings.lang);
     if (canTheme(ui)) {
       if (previousTheme) {
@@ -165,6 +184,9 @@ export function createController<Slot extends string>(
       if (settings.syncTerminalBg) {
         resetTerminalBackground(deps.terminalStream);
       }
+      if (settings.syncTerminalFg) {
+        resetTerminalForeground(deps.terminalStream);
+      }
       activeUi = undefined;
     },
 
@@ -180,15 +202,32 @@ export function createController<Slot extends string>(
     },
 
     savePrefs(update: Partial<Settings>): Settings {
-      const prevSync = settings.syncTerminalBg;
+      const prevSyncBg = settings.syncTerminalBg;
+      const prevSyncFg = settings.syncTerminalFg;
       settings = deps.saveSettings(update);
-      if (prevSync && !settings.syncTerminalBg) {
+      if (prevSyncBg && !settings.syncTerminalBg) {
         resetTerminalBackground(deps.terminalStream);
-      } else if (!prevSync && settings.syncTerminalBg && lastApplied) {
+      } else if (!prevSyncBg && settings.syncTerminalBg && lastApplied) {
         const bgHex = resolveThemeBgHex(lastApplied.theme, activeUi);
         if (bgHex) {
           syncTerminalBackground(bgHex, deps.terminalStream);
         }
+      }
+      if (prevSyncFg && !settings.syncTerminalFg) {
+        resetTerminalForeground(deps.terminalStream);
+      } else if (!prevSyncFg && settings.syncTerminalFg && lastApplied) {
+        const fgHex = resolveThemeFgHex(lastApplied.theme, activeUi);
+        if (fgHex) {
+          syncTerminalForeground(fgHex, deps.terminalStream);
+        }
+      }
+      if (settings.syncHerdrTheme && lastApplied) {
+        const herdrTheme = resolveHerdrTheme(
+          lastApplied.slot,
+          lastApplied.theme,
+          activeUi?.theme?.appearance,
+        );
+        syncHerdrTheme(herdrTheme);
       }
       // Re-apply immediately when the assignment for the active slot changed.
       if (timer !== null && canTheme(activeUi)) applySlot(activeUi);

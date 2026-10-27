@@ -8,8 +8,11 @@ import { describe, it } from "node:test";
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import {
   resetTerminalBackground,
+  resetTerminalForeground,
   resolveThemeBgHex,
+  resolveThemeFgHex,
   syncTerminalBackground,
+  syncTerminalForeground,
   toHexColor,
   type TerminalStream,
 } from "../src/slices/switcher/terminal.ts";
@@ -54,6 +57,32 @@ describe("terminal background synchronization (OSC 11 / 111)", () => {
   });
 });
 
+describe("terminal foreground synchronization (OSC 10 / 110)", () => {
+  it("syncTerminalForeground writes OSC 10 sequence when isTTY is true", () => {
+    const stream = createMockStream(true);
+    syncTerminalForeground("#657b83", stream);
+    assert.equal(stream.output, "\x1b]10;#657b83\x07");
+  });
+
+  it("syncTerminalForeground skips emission when isTTY is false", () => {
+    const stream = createMockStream(false);
+    syncTerminalForeground("#657b83", stream);
+    assert.equal(stream.output, "");
+  });
+
+  it("resetTerminalForeground writes OSC 110 sequence when isTTY is true", () => {
+    const stream = createMockStream(true);
+    resetTerminalForeground(stream);
+    assert.equal(stream.output, "\x1b]110\x07");
+  });
+
+  it("resetTerminalForeground skips emission when isTTY is false", () => {
+    const stream = createMockStream(false);
+    resetTerminalForeground(stream);
+    assert.equal(stream.output, "");
+  });
+});
+
 describe("toHexColor", () => {
   it("converts hex, short hex and okhsl color values to 6-digit hex", () => {
     assert.equal(toHexColor("#32302f"), "#32302f");
@@ -67,6 +96,49 @@ describe("toHexColor", () => {
     assert.equal(toHexColor(""), undefined);
     assert.equal(toHexColor("   "), undefined);
     assert.equal(toHexColor("not-a-color-at-all-xyz"), undefined);
+  });
+});
+
+describe("resolveThemeFgHex", () => {
+  it("resolves foreground hex colors for bundled palettes by name or prefixed name", () => {
+    assert.equal(resolveThemeFgHex("tts-day"), "#586e75");
+    assert.equal(resolveThemeFgHex("day"), "#586e75");
+
+    assert.equal(resolveThemeFgHex("tts-dawn"), "#d4be98");
+    assert.equal(resolveThemeFgHex("dawn"), "#d4be98");
+
+    assert.equal(resolveThemeFgHex("tts-dusk"), "#cad3f5");
+    assert.equal(resolveThemeFgHex("dusk"), "#cad3f5");
+
+    assert.equal(resolveThemeFgHex("tts-night"), "#eae7e8");
+    assert.equal(resolveThemeFgHex("night"), "#eae7e8");
+
+    assert.equal(resolveThemeFgHex("tts-osaka-jade"), "#d4c8a0");
+    assert.equal(resolveThemeFgHex("osaka-jade"), "#d4c8a0");
+  });
+
+  it("resolves foreground from custom registered theme JSON on disk", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tts-theme-fg-test-"));
+    const customThemeFile = join(dir, "custom.json");
+    try {
+      writeFileSync(
+        customThemeFile,
+        JSON.stringify({
+          name: "my-custom-theme-2",
+          vars: { fg: "#aabbcc" },
+          colors: { bg: "#000000" },
+        }),
+      );
+
+      const mockUi = {
+        getAllThemes: () => [{ name: "my-custom-theme-2", path: customThemeFile }],
+      } as unknown as ExtensionUIContext;
+
+      const hex = resolveThemeFgHex("my-custom-theme-2", mockUi);
+      assert.equal(hex, "#aabbcc");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

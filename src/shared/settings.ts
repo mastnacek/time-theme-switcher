@@ -46,6 +46,16 @@ export interface Settings {
    * using OSC 11 (\x1b]11;#RRGGBB\x07), and reset with OSC 111 (\x1b]111\x07) on exit/stop.
    */
   syncTerminalBg: boolean;
+  /**
+   * Synchronize host terminal foreground (font) color with the active theme foreground
+   * using OSC 10 (\x1b]10;#RRGGBB\x07), and reset with OSC 110 (\x1b]110\x07) on exit/stop.
+   */
+  syncTerminalFg: boolean;
+  /**
+   * Synchronize Herdr multiplexer theme in ~/.config/herdr/config.toml
+   * and reload via `herdr server reload-config`.
+   */
+  syncHerdrTheme: boolean;
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -56,4 +66,6 @@ export const SETTINGS_DEFAULTS: Settings = {
   lang: "en",
   themes: DEFAULT_SLOT_THEMES,
   syncTerminalBg: true,
+  syncTerminalFg: true,
+  syncHerdrTheme: true,
 };
