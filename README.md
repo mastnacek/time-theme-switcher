@@ -16,10 +16,10 @@ analysis:
   mainFiles: ["index.ts"]
   entryPoints: ["index.ts"]
   configFiles: ["package.json","tsconfig.json"]
-  testFiles: ["test\\commands.test.ts","test\\herdr.test.ts","test\\i18n.test.ts","test\\register-jiti.mjs","test\\settings.test.ts","test\\switcher.test.ts","test\\terminal.test.ts","test\\themes.test.ts","test\\verify-themes.mjs"]
-  testFileCount: 9
+  testFiles: ["test\\commands.test.ts","test\\herdr-controller.test.ts","test\\herdr-toml.test.ts","test\\herdr.test.ts","test\\i18n.test.ts","test\\register-jiti.mjs","test\\settings.test.ts","test\\switcher.test.ts","test\\terminal.test.ts","test\\themes.test.ts"]
+  testFileCount: 10
   dependencies: []
-  devDependencies: ["@types/node","typescript"]
+  devDependencies: ["@types/node","smol-toml","typescript"]
   scripts: {"test":"node --import ./test/register-jiti.mjs --test test/*.test.ts","typecheck":"tsc -p tsconfig.json","themes:verify":"node test/verify-themes.mjs"}
 generator:
   tool: "pi-readme-generator"
@@ -131,6 +131,8 @@ defaults on first run):
   background color via OSC 11 (`\x1b]11;#RRGGBB\x07`) to match the active
   theme, and restores default background with OSC 111 on exit/stop. Compatible
   with Windows Terminal, WezTerm, Alacritty, Ghostty, Kitty, iTerm2, etc.
+  *Note:* Under Herdr multiplexer, OSC 10/11 sequences only change the Pi pane's
+  emulated terminal and do not reach the host terminal (e.g. Windows Terminal).
 - `syncTerminalFg` — when `true` (default), synchronizes the host terminal
   foreground / text color via OSC 10 (`\x1b]10;#RRGGBB\x07`) to match the
   active theme, and restores default text color with OSC 110 on exit/stop.
@@ -139,6 +141,13 @@ defaults on first run):
   `~/.config/herdr/config.toml` on Linux and macOS, or `HERDR_CONFIG_PATH`) to match
   the active circadian phase (`solarized-light`, `gruvbox`, `catppuccin`, `rose-pine`),
   notifying the running Herdr server via `herdr server reload-config`.
+  - Sets `[theme.custom] sidebar_bg = "#hex"` to match the background color of the
+    active Pi theme. By default, Herdr sidebars without `theme.custom.sidebar_bg` use
+    the host terminal's background; setting this ensures the sidebar recolors cleanly
+    during light themes instead of staying dark.
+  - Automatically detects Herdr via `HERDR_ENV=1` or `TERM_PROGRAM=herdr` (running
+    server reloads only when executing inside Herdr).
+  - Resolves the Herdr binary from `HERDR_BIN_PATH`, falling back to standard `PATH` search.
   - Supports light counterparts (`gruvbox-light`, `catppuccin-latte`, `solarized-light`,
     `tokyo-night-day`, `rose-pine-dawn`, `kanagawa-lotus`, `one-light`).
   - Sets `auto_switch = false` in `[theme]` (or `theme.auto_switch = false`) and
@@ -189,8 +198,8 @@ elsewhere.
 - `src/slices/rotation/` — solar elevation → theme slot mapping
 - `src/slices/settings/` — global config loading/persistence
 - `src/slices/switcher/` — rotation timer, settings screen, slash commands,
-  terminal background sync (`controller.ts`, `settings-ui.ts`, `commands.ts`,
-  `terminal.ts`)
+  terminal background sync, and Herdr multiplexer sync (`controller.ts`,
+  `settings-ui.ts`, `commands.ts`, `terminal.ts`, `herdr.ts`, `herdr-toml.ts`)
 - `src/shared/` — solar math, settings shape, i18n string table (en + cs)
 - `themes/` — the palettes shipped with the package (`tts-*.json`)
 - `test/` — node:test suites for i18n, settings, the controller and the

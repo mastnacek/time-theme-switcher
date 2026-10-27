@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createController, type SwitcherDeps } from "../src/slices/switcher/controller.ts";
-import type { SyncHerdrResult } from "../src/slices/switcher/herdr.ts";
+import type { SyncHerdrOptions, SyncHerdrResult } from "../src/slices/switcher/herdr.ts";
 
 interface FakeUi {
   theme: { name: string; appearance?: "dark" | "light" };
@@ -34,7 +34,7 @@ function makeUi(appearance: "dark" | "light" = "dark"): FakeUi {
 function makeDeps(
   initialSettings: Record<string, unknown>,
   slot: () => string,
-  syncHerdrFn: (theme: string) => SyncHerdrResult,
+  syncHerdrFn: (theme: string, options?: SyncHerdrOptions) => SyncHerdrResult,
 ) {
   let settings = {
     enabled: true,
@@ -139,6 +139,24 @@ describe("controller Herdr synchronization integration", () => {
     controller.handleSessionStart({ hasUI: true, ui } as never);
 
     assert.equal(called, false);
+    controller.handleShutdown();
+  });
+
+  it("passes active theme background as sidebarBg option to syncHerdr", () => {
+    const syncCalls: { theme: string; sidebarBg?: string }[] = [];
+    const deps = makeDeps({ enabled: true, syncHerdrTheme: true }, () => "day", (theme, options) => {
+      syncCalls.push({ theme, sidebarBg: options?.sidebarBg });
+      return { updated: true, herdrTheme: theme };
+    });
+
+    const controller = createController(deps);
+    const ui = makeUi("light");
+    controller.handleSessionStart({ hasUI: true, ui } as never);
+
+    assert.equal(syncCalls.length, 1);
+    assert.equal(syncCalls[0].theme, "solarized-light");
+    assert.equal(syncCalls[0].sidebarBg, "#fdf6e3");
+
     controller.handleShutdown();
   });
 });

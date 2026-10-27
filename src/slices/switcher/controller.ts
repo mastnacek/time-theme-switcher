@@ -20,6 +20,7 @@ import {
 import {
   resolveHerdrTheme,
   syncHerdrTheme,
+  type SyncHerdrOptions,
   type SyncHerdrResult,
 } from "./herdr.ts";
 
@@ -34,7 +35,10 @@ export interface SwitcherDeps<Slot extends string> {
   /** Optional stream for OSC terminal sequences (defaults to process.stdout). */
   terminalStream?: TerminalStream;
   /** Optional synchronizer for Herdr multiplexer theme (defaults to syncHerdrTheme). */
-  syncHerdr?: (herdrThemeName: string) => SyncHerdrResult;
+  syncHerdr?: (
+    herdrThemeName: string,
+    options?: SyncHerdrOptions,
+  ) => SyncHerdrResult;
 }
 
 export interface RefreshResult {
@@ -80,8 +84,12 @@ export function createController<Slot extends string>(
 
   const syncHerdr = deps.syncHerdr ?? syncHerdrTheme;
 
-  function handleHerdrSync(herdrTheme: string, ui?: ExtensionUIContext): void {
-    const result = syncHerdr(herdrTheme);
+  function handleHerdrSync(
+    herdrTheme: string,
+    sidebarBg?: string,
+    ui?: ExtensionUIContext,
+  ): void {
+    const result = syncHerdr(herdrTheme, { sidebarBg });
     if (result.autoSwitchDisabled && !autoSwitchNotified) {
       autoSwitchNotified = true;
       if (canTheme(ui)) {
@@ -125,8 +133,8 @@ export function createController<Slot extends string>(
     const s = stringsFor(settings.lang);
     if (result.success) {
       lastApplied = { slot, theme: name };
+      const bgHex = resolveThemeBgHex(name, ui);
       if (settings.syncTerminalBg) {
-        const bgHex = resolveThemeBgHex(name, ui);
         if (bgHex) {
           syncTerminalBackground(bgHex, deps.terminalStream);
         } else {
@@ -143,7 +151,7 @@ export function createController<Slot extends string>(
       }
       if (settings.syncHerdrTheme) {
         const herdrTheme = resolveHerdrTheme(slot, name, ui.theme?.appearance);
-        handleHerdrSync(herdrTheme, ui);
+        handleHerdrSync(herdrTheme, bgHex, ui);
       }
       if (!options.silent) ui.notify(s.switchedTo(name));
       return true;
@@ -258,7 +266,8 @@ export function createController<Slot extends string>(
           lastApplied.theme,
           activeUi?.theme?.appearance,
         );
-        handleHerdrSync(herdrTheme, activeUi);
+        const bgHex = resolveThemeBgHex(lastApplied.theme, activeUi);
+        handleHerdrSync(herdrTheme, bgHex, activeUi);
       }
       // Re-apply immediately when the assignment for the active slot changed.
       if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
@@ -282,7 +291,8 @@ export function createController<Slot extends string>(
       let herdrTheme: string | undefined;
       if (settings.syncHerdrTheme) {
         herdrTheme = resolveHerdrTheme(slot, name);
-        handleHerdrSync(herdrTheme, targetUi);
+        const bgHex = resolveThemeBgHex(name, targetUi);
+        handleHerdrSync(herdrTheme, bgHex, targetUi);
       }
       return { slot, theme: name, herdrTheme, success: true };
     },
