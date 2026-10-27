@@ -27,16 +27,12 @@ export function defaultHerdrConfigPath(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): string {
-  if (env.HERDR_CONFIG_PATH) {
-    return env.HERDR_CONFIG_PATH;
-  }
+  if (env.HERDR_CONFIG_PATH) return env.HERDR_CONFIG_PATH;
   if (platform === "win32") {
     const appData = env.APPDATA || join(homedir(), "AppData", "Roaming");
     return join(appData, "herdr", "config.toml");
   }
-  if (env.XDG_CONFIG_HOME) {
-    return join(env.XDG_CONFIG_HOME, "herdr", "config.toml");
-  }
+  if (env.XDG_CONFIG_HOME) return join(env.XDG_CONFIG_HOME, "herdr", "config.toml");
   return join(homedir(), ".config", "herdr", "config.toml");
 }
 
@@ -67,32 +63,18 @@ export function resolveHerdrTheme(
   if (lower === "tts-night" || lower === "tts-osaka-jade") return "rose-pine";
 
   // Family checks with light/dark counterparts
-  if (lower.includes("solarized")) {
-    return isLight ? "solarized-light" : "solarized";
-  }
-  if (lower.includes("gruvbox")) {
-    return isLight ? "gruvbox-light" : "gruvbox";
-  }
-  if (lower.includes("catppuccin")) {
-    return isLight ? "catppuccin-latte" : "catppuccin";
-  }
-  if (lower.includes("rose-pine")) {
-    return isLight ? "rose-pine-dawn" : "rose-pine";
-  }
-  if (lower.includes("tokyo")) {
-    return isLight ? "tokyo-night-day" : "tokyo-night";
-  }
-  if (lower.includes("kanagawa")) {
-    return isLight ? "kanagawa-lotus" : "kanagawa";
-  }
+  if (lower.includes("solarized")) return isLight ? "solarized-light" : "solarized";
+  if (lower.includes("gruvbox")) return isLight ? "gruvbox-light" : "gruvbox";
+  if (lower.includes("catppuccin")) return isLight ? "catppuccin-latte" : "catppuccin";
+  if (lower.includes("rose-pine")) return isLight ? "rose-pine-dawn" : "rose-pine";
+  if (lower.includes("tokyo")) return isLight ? "tokyo-night-day" : "tokyo-night";
+  if (lower.includes("kanagawa")) return isLight ? "kanagawa-lotus" : "kanagawa";
   const isOneTheme =
     /(^|[-_ ])one([-_ ]|$)/.test(lower) ||
     lower.startsWith("one-") ||
     lower.includes("onedark") ||
     lower.includes("onelight");
-  if (isOneTheme) {
-    return isLight ? "one-light" : "one-dark";
-  }
+  if (isOneTheme) return isLight ? "one-light" : "one-dark";
 
   // Dark-only built-in themes
   if (lower.includes("nord")) return "nord";
@@ -110,6 +92,11 @@ export function resolveHerdrTheme(
 export interface UpdateTomlThemeResult {
   content: string;
   autoSwitchDisabled: boolean;
+}
+
+function extractInlineComment(line: string): string {
+  const match = /(\s*#.*)$/.exec(line);
+  return match ? match[1] : "";
 }
 
 /**
@@ -229,12 +216,12 @@ export function updateTomlThemeDetails(
 
       if (hasTopLevelThemeDotted) {
         if (/^\s*theme\.name\s*=/.test(line)) {
-          outputLines.push(`theme.name = "${newTheme}"`);
+          outputLines.push(`theme.name = "${newTheme}"${extractInlineComment(line)}`);
           nameReplaced = true;
           continue;
         }
         if (/^\s*theme\.auto_switch\s*=\s*true\b/.test(line)) {
-          outputLines.push("theme.auto_switch = false");
+          outputLines.push(`theme.auto_switch = false${extractInlineComment(line)}`);
           autoSwitchDisabled = true;
           if (i === lastTopLevelThemeIdx && !hasTopLevelThemeName && !nameReplaced) {
             outputLines.push(`theme.name = "${newTheme}"`);
@@ -255,13 +242,12 @@ export function updateTomlThemeDetails(
 
     if (inThemeSection) {
       if (/^\s*name\s*=/.test(line)) {
-        outputLines.push(`name = "${newTheme}"`);
+        outputLines.push(`name = "${newTheme}"${extractInlineComment(line)}`);
         nameReplaced = true;
         continue;
       }
       if (/^\s*auto_switch\s*=\s*true\b/.test(line)) {
-        // Circadian switcher controls active theme via name = "..."; disable auto_switch
-        outputLines.push("auto_switch = false");
+        outputLines.push(`auto_switch = false${extractInlineComment(line)}`);
         autoSwitchDisabled = true;
         continue;
       }
@@ -299,6 +285,8 @@ export function updateTomlThemeDetails(
  * Updates or inserts the [theme] name = "..." in a TOML string.
  * Supports [theme] headers with comments/spaces, array-of-tables headers,
  * dotted theme.name keys, and disables auto_switch so Herdr honors the circadian theme.
+ *
+ * Note: Line-based parser designed for Herdr's config schema; does not support multiline """...""" strings.
  */
 export function updateTomlTheme(tomlContent: string, newTheme: string): string {
   return updateTomlThemeDetails(tomlContent, newTheme).content;
@@ -346,15 +334,8 @@ export function syncHerdrTheme(
         const pathSeparator = process.platform === "win32" ? ";" : ":";
         const extraPaths =
           process.platform === "win32"
-            ? [
-                join(homedir(), ".herdr", "bin"),
-                join(homedir(), ".cargo", "bin"),
-              ]
-            : [
-                join(homedir(), ".local", "bin"),
-                join(homedir(), ".cargo", "bin"),
-                "/usr/local/bin",
-              ];
+            ? [join(homedir(), ".herdr", "bin"), join(homedir(), ".cargo", "bin")]
+            : [join(homedir(), ".local", "bin"), join(homedir(), ".cargo", "bin"), "/usr/local/bin"];
         const currentPath = process.env.PATH ?? "";
         const envPath = `${currentPath}${pathSeparator}${extraPaths.join(pathSeparator)}`;
 

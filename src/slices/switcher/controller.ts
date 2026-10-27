@@ -17,7 +17,11 @@ import {
   syncTerminalForeground,
   type TerminalStream,
 } from "./terminal.ts";
-import { resolveHerdrTheme, syncHerdrTheme } from "./herdr.ts";
+import {
+  resolveHerdrTheme,
+  syncHerdrTheme,
+  type SyncHerdrResult,
+} from "./herdr.ts";
 
 export interface SwitcherDeps<Slot extends string> {
   getSettings(): Settings;
@@ -29,6 +33,8 @@ export interface SwitcherDeps<Slot extends string> {
   themeLabels: Record<Slot, string>;
   /** Optional stream for OSC terminal sequences (defaults to process.stdout). */
   terminalStream?: TerminalStream;
+  /** Optional synchronizer for Herdr multiplexer theme (defaults to syncHerdrTheme). */
+  syncHerdr?: (herdrThemeName: string) => SyncHerdrResult;
 }
 
 export interface RefreshResult {
@@ -72,8 +78,10 @@ export function createController<Slot extends string>(
   const canTheme = (ui: ExtensionUIContext | undefined): ui is ExtensionUIContext =>
     typeof ui?.setTheme === "function";
 
+  const syncHerdr = deps.syncHerdr ?? syncHerdrTheme;
+
   function handleHerdrSync(herdrTheme: string, ui?: ExtensionUIContext): void {
-    const result = syncHerdrTheme(herdrTheme);
+    const result = syncHerdr(herdrTheme);
     if (result.autoSwitchDisabled && !autoSwitchNotified) {
       autoSwitchNotified = true;
       if (canTheme(ui)) {

@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { parse } from "smol-toml";
 import {
   defaultHerdrConfigPath,
   resolveHerdrTheme,
@@ -16,41 +17,24 @@ import {
 describe("defaultHerdrConfigPath", () => {
   it("prioritizes HERDR_CONFIG_PATH when provided", () => {
     const custom = "/custom/path/to/herdr.toml";
-    assert.equal(
-      defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "linux"),
-      custom,
-    );
-    assert.equal(
-      defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "win32"),
-      custom,
-    );
+    assert.equal(defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "linux"), custom);
+    assert.equal(defaultHerdrConfigPath({ HERDR_CONFIG_PATH: custom }, "win32"), custom);
   });
 
   it("resolves to %APPDATA%\\herdr\\config.toml on Windows", () => {
-    const res = defaultHerdrConfigPath(
-      { APPDATA: "C:\\Users\\test\\AppData\\Roaming" },
-      "win32",
-    );
+    const res = defaultHerdrConfigPath({ APPDATA: "C:\\Users\\test\\AppData\\Roaming" }, "win32");
     assert.equal(res, join("C:\\Users\\test\\AppData\\Roaming", "herdr", "config.toml"));
   });
 
   it("resolves to XDG_CONFIG_HOME or ~/.config/herdr/config.toml on Unix", () => {
-    const resXdg = defaultHerdrConfigPath(
-      { XDG_CONFIG_HOME: "/home/test/.myconfig" },
-      "linux",
-    );
+    const resXdg = defaultHerdrConfigPath({ XDG_CONFIG_HOME: "/home/test/.myconfig" }, "linux");
     assert.equal(resXdg, join("/home/test/.myconfig", "herdr", "config.toml"));
-
-    const resDefault = defaultHerdrConfigPath({}, "linux");
-    assert.match(resDefault, /\.config[/\\]herdr[/\\]config\.toml$/);
+    assert.match(defaultHerdrConfigPath({}, "linux"), /\.config[/\\]herdr[/\\]config\.toml$/);
   });
 
   it("resolves to ~/.config/herdr/config.toml on macOS and Linux", () => {
-    const resDarwin = defaultHerdrConfigPath({}, "darwin");
-    assert.match(resDarwin, /\.config[/\\]herdr[/\\]config\.toml$/);
-
-    const resLinux = defaultHerdrConfigPath({}, "linux");
-    assert.match(resLinux, /\.config[/\\]herdr[/\\]config\.toml$/);
+    assert.match(defaultHerdrConfigPath({}, "darwin"), /\.config[/\\]herdr[/\\]config\.toml$/);
+    assert.match(defaultHerdrConfigPath({}, "linux"), /\.config[/\\]herdr[/\\]config\.toml$/);
   });
 });
 
@@ -89,131 +73,215 @@ describe("resolveHerdrTheme", () => {
     assert.equal(resolveHerdrTheme("day", "everforest-honey"), "solarized-light");
   });
 
-  it("prioritizes explicit 'dark' in theme name over day/dawn substring (regression: daybreak-dark)", () => {
-    assert.equal(resolveHerdrTheme("night", "daybreak-dark"), "rose-pine");
-    assert.notEqual(resolveHerdrTheme("night", "daybreak-dark"), "solarized-light");
+  it("prioritizes explicit 'dark' in theme name over day/dawn substring (non-tautological known family)", () => {
+    // gruvbox family: if isLight -> gruvbox-light, else gruvbox
+    // gruvbox-dawn-dark contains "dawn" (heuristic light) AND "dark".
+    // Explicit "dark" must win without appearance set, resolving to "gruvbox", not "gruvbox-light".
+    assert.equal(resolveHerdrTheme("night", "gruvbox-dawn-dark"), "gruvbox");
+    assert.equal(resolveHerdrTheme("day", "gruvbox-dawn-dark"), "gruvbox");
+    assert.equal(resolveHerdrTheme("night", "gruvbox-dawn"), "gruvbox-light");
   });
 });
 
-describe("updateTomlTheme", () => {
+describe("updateTomlTheme (parsed TOML structural verification)", () => {
   it("appends [theme] section to empty or non-theme toml", () => {
     const emptyResult = updateTomlTheme("", "solarized-light");
-    assert.match(emptyResult, /\[theme\]/);
-    assert.match(emptyResult, /name = "solarized-light"/);
+    const p1 = parse(emptyResult) as any;
+    assert.equal(p1.theme?.name, "solarized-light");
+    assert.equal(p1.theme?.auto_switch, false);
 
-    const otherConfig = "[terminal]\nshell = \"bash\"\n";
-    const result = updateTomlTheme(otherConfig, "catppuccin");
-    assert.match(result, /\[terminal\]/);
-    assert.match(result, /\[theme\]/);
-    assert.match(result, /name = "catppuccin"/);
+    const result = updateTomlTheme("[terminal]\nshell = \"bash\"\n", "catppuccin");
+    const p2 = parse(result) as any;
+    assert.equal(p2.terminal?.shell, "bash");
+    assert.equal(p2.theme?.name, "catppuccin");
+    assert.equal(p2.theme?.auto_switch, false);
   });
 
   it("replaces existing name under [theme] section", () => {
-    const existing = `
-[theme]
-name = "dracula"
-auto_switch = false
-
-[terminal]
-shell = "pwsh"
-`.trim();
-
+    const existing = `[theme]\nname = "dracula"\nauto_switch = false\n\n[terminal]\nshell = "pwsh"`;
     const result = updateTomlTheme(existing, "rose-pine");
-    assert.match(result, /name = "rose-pine"/);
-    assert.ok(!result.includes('name = "dracula"'));
-    assert.match(result, /auto_switch = false/);
-    assert.match(result, /\[terminal\]/);
+    const parsed = parse(result) as any;
+    assert.equal(parsed.theme?.name, "rose-pine");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.terminal?.shell, "pwsh");
   });
 
   it("inserts name and disables auto_switch under existing [theme] section", () => {
-    const existing = `
-[theme]
-auto_switch = true
-
-[terminal]
-shell = "pwsh"
-`.trim();
-
+    const existing = `[theme]\nauto_switch = true\n\n[terminal]\nshell = "pwsh"`;
     const result = updateTomlTheme(existing, "gruvbox");
-    assert.match(result, /name = "gruvbox"/);
-    assert.match(result, /auto_switch = false/);
-    assert.equal((result.match(/\[theme\]/g) || []).length, 1);
+    const parsed = parse(result) as any;
+    assert.equal(parsed.theme?.name, "gruvbox");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.terminal?.shell, "pwsh");
   });
 
-  it("handles [theme] section headers with comments and whitespace", () => {
-    const existing = `
-[theme] # User theme configuration
-# Built-in themes: catppuccin, gruvbox, etc.
-name = "dracula"
-auto_switch = true
-
-[ui]
-sidebar_width = 24
-`.trim();
-
+  it("handles [theme] section headers with comments and preserves inline comments", () => {
+    const existing = `[theme] # User config\nname = "dracula" # default\nauto_switch = true # follower\n\n[ui]\nx = 24`;
     const result = updateTomlTheme(existing, "catppuccin-latte");
-    assert.match(result, /name = "catppuccin-latte"/);
-    assert.match(result, /auto_switch = false/);
-    assert.equal((result.match(/\[theme\]/g) || []).length, 1);
-    assert.match(result, /\[ui\]/);
+    const parsed = parse(result) as any;
+    assert.equal(parsed.theme?.name, "catppuccin-latte");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.ui?.x, 24);
+    assert.ok(result.includes('name = "catppuccin-latte" # default'));
+    assert.ok(result.includes("auto_switch = false # follower"));
   });
 
   it("handles top-level dotted theme.name and theme.auto_switch keys", () => {
-    const dotted = `
-theme.name = "nord"
-theme.auto_switch = true
-
-[terminal]
-shell = "bash"
-`.trim();
-
+    const dotted = `theme.name = "nord"\ntheme.auto_switch = true\n\n[terminal]\nshell = "bash"`;
     const result = updateTomlTheme(dotted, "solarized-light");
-    assert.match(result, /theme\.name = "solarized-light"/);
-    assert.match(result, /theme\.auto_switch = false/);
-    assert.ok(!result.includes("[theme]"), "does not append [theme] section when dotted key is present");
+    const parsed = parse(result) as any;
+    assert.equal(parsed.theme?.name, "solarized-light");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.terminal?.shell, "bash");
+    assert.ok(!result.includes("[theme]"), "no duplicate table");
   });
 
   it("preserves CRLF line endings when present", () => {
     const crlf = "[theme]\r\nname = \"dracula\"\r\n\r\n[terminal]\r\nshell = \"pwsh\"\r\n";
     const res = updateTomlTheme(crlf, "gruvbox");
     assert.ok(res.includes("\r\n"), "maintains CRLF");
-    assert.match(res, /name = "gruvbox"/);
+    const parsed = parse(res) as any;
+    assert.equal(parsed.theme?.name, "gruvbox");
+    assert.equal(parsed.terminal?.shell, "pwsh");
   });
 
   it("terminates [theme] at array-of-tables and preserves keybinding name (regression: Repro A)", () => {
     const reproA = `[theme]\nauto_switch = false\n\n[[keys.command]]\nkey = "prefix+k"\nname = "keep-me"\n`;
     const res = updateTomlTheme(reproA, "nord");
-    assert.match(res, /\[theme\]\s*\nauto_switch = false\s*\nname = "nord"/);
-    assert.match(res, /\[\[keys\.command\]\]\s*\nkey = "prefix\+k"\s*\nname = "keep-me"/);
-    assert.ok(res.includes('name = "keep-me"'), "preserves original keybinding name");
-    assert.equal((res.match(/name = "nord"/g) || []).length, 1);
+    const parsed = parse(res) as any;
+    assert.equal(parsed.theme?.name, "nord");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.keys?.command?.length, 1);
+    assert.equal(parsed.keys?.command?.[0]?.key, "prefix+k");
+    assert.equal(parsed.keys?.command?.[0]?.name, "keep-me");
   });
 
   it("inserts missing theme name inside [theme] before subsequent array-of-tables (regression: Repro B)", () => {
     const reproB = `[theme]\n\n[[keys.command]]\nkey = "prefix+k"\n`;
     const res = updateTomlTheme(reproB, "nord");
-    assert.match(res, /\[theme\]\s*\nname = "nord"/);
-    assert.match(res, /\[\[keys\.command\]\]\s*\nkey = "prefix\+k"/);
-    assert.ok(!res.endsWith('name = "nord"\n'), "name is not at the end of file inside keys.command");
+    const parsed = parse(res) as any;
+    assert.equal(parsed.theme?.name, "nord");
+    assert.equal(parsed.keys?.command?.length, 1);
+    assert.equal(parsed.keys?.command?.[0]?.key, "prefix+k");
+    assert.equal(parsed.keys?.command?.[0]?.name, undefined);
   });
 
   it("handles top-level dotted theme.* key without theme.name and avoids duplicate [theme] (regression: Repro C)", () => {
     const reproC = `theme.auto_switch = true\n[ui]\nx = 1\n`;
     const details = updateTomlThemeDetails(reproC, "nord");
     assert.equal(details.autoSwitchDisabled, true);
-    const res = details.content;
-    assert.match(res, /theme\.auto_switch = false/);
-    assert.match(res, /theme\.name = "nord"/);
-    assert.match(res, /\[ui\]\s*\nx = 1/);
-    assert.ok(!res.includes("[theme]"), "does not append duplicate [theme] table");
+    const parsed = parse(details.content) as any;
+    assert.equal(parsed.theme?.name, "nord");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.ui?.x, 1);
+    assert.ok(!details.content.includes("[theme]"), "does not append duplicate [theme] table");
   });
 
   it("handles inline table theme = { ... } at top level", () => {
     const inline = `theme = { auto_switch = true }\n[terminal]\nshell = "bash"\n`;
     const details = updateTomlThemeDetails(inline, "nord");
     assert.equal(details.autoSwitchDisabled, true);
-    assert.match(details.content, /theme = \{ name = "nord", auto_switch = false \}/);
+    const parsed = parse(details.content) as any;
+    assert.equal(parsed.theme?.name, "nord");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.terminal?.shell, "bash");
     assert.ok(!details.content.includes("[theme]"));
+  });
+
+  it("golden test: updates real user config shape line-by-line and preserves CRLF", () => {
+    const lines = [
+      'onboarding = true',
+      'agent_panel_sort = "alpha"',
+      '',
+      '[update]',
+      'check_on_startup = true',
+      '',
+      '[ui.toast]',
+      'duration_ms = 3000',
+      '',
+      '[ui]',
+      'sidebar_width = 24',
+      '',
+      '[theme]',
+      'name = "old-theme"',
+      'auto_switch = false',
+      '',
+      '[[keys.command]]',
+      'key = "prefix+1"',
+      'action = "focus_pane_1"',
+      '',
+      '[[keys.command]]',
+      'key = "prefix+2"',
+      'action = "focus_pane_2"',
+      '',
+      '[[keys.command]]',
+      'key = "prefix+c"',
+      'action = "new_tab"',
+      '',
+      '[[keys.command]]',
+      'key = "prefix+x"',
+      'action = "close_pane"',
+      '',
+      '[[keys.command]]',
+      'key = "prefix+k"',
+      'name = "custom-kill"',
+      'action = "kill_pane"',
+      '',
+    ];
+    const goldenConfig = lines.join("\r\n");
+    const updated = updateTomlTheme(goldenConfig, "solarized-light");
+
+    assert.ok(updated.includes("\r\n"), "line endings must stay CRLF");
+    const originalLines = goldenConfig.split("\r\n");
+    const updatedLines = updated.split("\r\n");
+    assert.equal(updatedLines.length, originalLines.length, "line count unchanged");
+
+    let changedLineCount = 0;
+    for (let i = 0; i < originalLines.length; i++) {
+      if (originalLines[i] !== updatedLines[i]) {
+        changedLineCount++;
+        assert.equal(originalLines[i], 'name = "old-theme"');
+        assert.equal(updatedLines[i], 'name = "solarized-light"');
+      }
+    }
+    assert.equal(changedLineCount, 1, "exactly one line modified");
+
+    const parsed = parse(updated) as any;
+    assert.equal(parsed.onboarding, true);
+    assert.equal(parsed.agent_panel_sort, "alpha");
+    assert.equal(parsed.update?.check_on_startup, true);
+    assert.equal(parsed.ui?.toast?.duration_ms, 3000);
+    assert.equal(parsed.ui?.sidebar_width, 24);
+    assert.equal(parsed.theme?.name, "solarized-light");
+    assert.equal(parsed.theme?.auto_switch, false);
+    assert.equal(parsed.keys?.command?.length, 5);
+    assert.equal(parsed.keys?.command?.[4]?.name, "custom-kill");
+    assert.equal(parsed.keys?.command?.[4]?.action, "kill_pane");
+  });
+
+  it("idempotency: update(update(x)) === update(x) across diverse fixtures", () => {
+    const fixtures = [
+      "",
+      "[terminal]\nshell = \"bash\"\n",
+      "[theme]\nname = \"dracula\"\nauto_switch = false\n",
+      "[theme]\nauto_switch = true\n",
+      "[theme] # comment\nname = \"dracula\" # mine\nauto_switch = true # auto\n",
+      "theme.name = \"nord\"\ntheme.auto_switch = true\n",
+      "theme.auto_switch = true\n[ui]\nx = 1\n",
+      "theme = { auto_switch = true }\n[terminal]\nshell = \"bash\"\n",
+      "[theme]\nauto_switch = false\n\n[[keys.command]]\nkey = \"prefix+k\"\nname = \"keep-me\"\n",
+      "[theme]\n\n[[keys.command]]\nkey = \"prefix+k\"\n",
+    ];
+
+    for (const f of fixtures) {
+      const once = updateTomlTheme(f, "nord");
+      const twice = updateTomlTheme(once, "nord");
+      assert.equal(twice, once, `idempotent on: ${JSON.stringify(f)}`);
+
+      const changedOnce = updateTomlTheme(once, "gruvbox");
+      const changedTwice = updateTomlTheme(changedOnce, "gruvbox");
+      assert.equal(changedTwice, changedOnce, `idempotent re-switch on: ${JSON.stringify(f)}`);
+    }
   });
 });
 
@@ -226,13 +294,44 @@ describe("syncHerdrTheme", () => {
       assert.equal(res.updated, true);
       assert.equal(res.herdrTheme, "solarized-light");
 
-      const content = readFileSync(configPath, "utf8");
-      assert.match(content, /name = "solarized-light"/);
+      const parsed = parse(readFileSync(configPath, "utf8")) as any;
+      assert.equal(parsed.theme?.name, "solarized-light");
 
-      // Second sync with same theme should report updated: false
       const res2 = syncHerdrTheme("solarized-light", { configPath, reloadServer: false });
       assert.equal(res2.updated, false);
       assert.equal(res2.autoSwitchDisabled, false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves existing content and reports autoSwitchDisabled when auto_switch is true", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
+    const configPath = join(dir, "config.toml");
+    try {
+      const initial = `[terminal]\nshell = "pwsh"\n\n[theme]\nname = "dracula"\nauto_switch = true\n`;
+      writeFileSync(configPath, initial, "utf8");
+
+      const res = syncHerdrTheme("gruvbox", { configPath, reloadServer: false });
+      assert.equal(res.updated, true);
+      assert.equal(res.autoSwitchDisabled, true);
+
+      const parsed = parse(readFileSync(configPath, "utf8")) as any;
+      assert.equal(parsed.terminal?.shell, "pwsh");
+      assert.equal(parsed.theme?.name, "gruvbox");
+      assert.equal(parsed.theme?.auto_switch, false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("error path: returns error object when configPath is a directory and does not throw", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
+    try {
+      const res = syncHerdrTheme("nord", { configPath: dir, reloadServer: false });
+      assert.equal(res.updated, false);
+      assert.equal(res.herdrTheme, "nord");
+      assert.ok(typeof res.error === "string" && res.error.length > 0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
