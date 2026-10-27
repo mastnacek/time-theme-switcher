@@ -192,7 +192,7 @@ describe("syncHerdrTheme", () => {
     }
   });
 
-  it("skips reload-config when not running under Herdr", () => {
+  it("reloads server even when running outside Herdr environment", () => {
     const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
     const configPath = join(dir, "config.toml");
     const executedCommands: any[] = [];
@@ -209,7 +209,33 @@ describe("syncHerdrTheme", () => {
         execFileFn: mockExecFile,
       });
       assert.equal(res.updated, true);
-      assert.equal(executedCommands.length, 0, "must not reload if not under Herdr");
+      assert.equal(executedCommands.length, 1, "must reload server even if not under Herdr");
+      assert.equal(executedCommands[0].bin, "herdr");
+      assert.deepEqual(executedCommands[0].args, ["server", "reload-config"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("skips reload-config when reloadServer option is explicitly false", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tts-herdr-test-"));
+    const configPath = join(dir, "config.toml");
+    const executedCommands: any[] = [];
+    try {
+      const env = { HERDR_ENV: "1" };
+      const mockExecFile = ((bin: string, args: string[]) => {
+        executedCommands.push({ bin, args });
+        return { unref() {} };
+      }) as any;
+
+      const res = syncHerdrTheme("nord", {
+        configPath,
+        env,
+        reloadServer: false,
+        execFileFn: mockExecFile,
+      });
+      assert.equal(res.updated, true);
+      assert.equal(executedCommands.length, 0, "must not reload if reloadServer is false");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

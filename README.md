@@ -144,9 +144,12 @@ defaults on first run):
   - Sets `[theme.custom] sidebar_bg = "#hex"` to match the background color of the
     active Pi theme. By default, Herdr sidebars without `theme.custom.sidebar_bg` use
     the host terminal's background; setting this ensures the sidebar recolors cleanly
-    during light themes instead of staying dark.
-  - Automatically detects Herdr via `HERDR_ENV=1` or `TERM_PROGRAM=herdr` (running
-    server reloads only when executing inside Herdr).
+    during light themes instead of staying dark. *Note:* The plugin overwrites any
+    manual `theme.custom.sidebar_bg`, and after disabling sync in the plugin config,
+    the last written value remains in `config.toml`.
+  - Always reloads a running Herdr server via `herdr server reload-config` after config
+    changes (even when running outside Herdr; if the CLI or server is absent, it is
+    silently ignored).
   - Resolves the Herdr binary from `HERDR_BIN_PATH`, falling back to standard `PATH` search.
   - Supports light counterparts (`gruvbox-light`, `catppuccin-latte`, `solarized-light`,
     `tokyo-night-day`, `rose-pine-dawn`, `kanagawa-lotus`, `one-light`).

@@ -143,7 +143,7 @@ export function syncHerdrTheme(
 ): SyncHerdrResult {
   const env = options.env ?? process.env;
   const configPath = options.configPath ?? defaultHerdrConfigPath(env);
-  const shouldReload = options.reloadServer ?? isHerdr(env);
+  const shouldReload = options.reloadServer !== false;
 
   try {
     let original = "";
