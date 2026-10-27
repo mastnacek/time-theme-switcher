@@ -76,9 +76,6 @@ export function createController<Slot extends string>(
     const result = syncHerdrTheme(herdrTheme);
     if (result.autoSwitchDisabled && !autoSwitchNotified) {
       autoSwitchNotified = true;
-      console.info(
-        "[time-theme-switcher] Disabled Herdr auto_switch in config.toml to follow circadian theme schedule",
-      );
       if (canTheme(ui)) {
         const s = stringsFor(settings.lang);
         ui.notify(s.herdrAutoSwitchDisabled);
