@@ -16,8 +16,8 @@ analysis:
   mainFiles: ["index.ts"]
   entryPoints: ["index.ts"]
   configFiles: ["package.json","tsconfig.json"]
-  testFiles: ["test\\herdr.test.ts","test\\i18n.test.ts","test\\register-jiti.mjs","test\\settings.test.ts","test\\switcher.test.ts","test\\terminal.test.ts","test\\themes.test.ts","test\\verify-themes.mjs"]
-  testFileCount: 8
+  testFiles: ["test\\commands.test.ts","test\\herdr.test.ts","test\\i18n.test.ts","test\\register-jiti.mjs","test\\settings.test.ts","test\\switcher.test.ts","test\\terminal.test.ts","test\\themes.test.ts","test\\verify-themes.mjs"]
+  testFileCount: 9
   dependencies: []
   devDependencies: ["@types/node","typescript"]
   scripts: {"test":"node --import ./test/register-jiti.mjs --test test/*.test.ts","typecheck":"tsc -p tsconfig.json","themes:verify":"node test/verify-themes.mjs"}
@@ -136,9 +136,15 @@ defaults on first run):
   active theme, and restores default text color with OSC 110 on exit/stop.
 - `syncHerdrTheme` — when `true` (default), synchronizes the theme in the Herdr
   multiplexer configuration (`%APPDATA%\herdr\config.toml` on Windows,
-  `~/.config/herdr/config.toml` on Unix/macOS, or `HERDR_CONFIG_PATH`) to match
+  `~/.config/herdr/config.toml` on Linux and macOS, or `HERDR_CONFIG_PATH`) to match
   the active circadian phase (`solarized-light`, `gruvbox`, `catppuccin`, `rose-pine`),
   notifying the running Herdr server via `herdr server reload-config`.
+  - Supports light counterparts (`gruvbox-light`, `catppuccin-latte`, `solarized-light`,
+    `tokyo-night-day`, `rose-pine-dawn`, `kanagawa-lotus`, `one-light`).
+  - Sets `auto_switch = false` in `[theme]` so Herdr honors the 4-phase circadian theme
+    instead of its binary terminal-appearance fallback.
+  - For remote sessions (`herdr --remote`), Herdr themes are rendered by the local client,
+    so settings apply to the local configuration where the client runs.
 - `latitude` / `longitude` — your location (-90..90 / -180..180)
 - `timezone` — IANA name, informational
 - `lang` — UI language of the plugin (`en` or `cs`)

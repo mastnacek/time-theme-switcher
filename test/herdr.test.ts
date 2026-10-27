@@ -44,9 +44,12 @@ describe("defaultHerdrConfigPath", () => {
     assert.match(resDefault, /\.config[/\\]herdr[/\\]config\.toml$/);
   });
 
-  it("resolves to ~/Library/Application Support/herdr/config.toml on macOS", () => {
+  it("resolves to ~/.config/herdr/config.toml on macOS and Linux", () => {
     const resDarwin = defaultHerdrConfigPath({}, "darwin");
-    assert.match(resDarwin, /Library[/\\]Application Support[/\\]herdr[/\\]config\.toml$/);
+    assert.match(resDarwin, /\.config[/\\]herdr[/\\]config\.toml$/);
+
+    const resLinux = defaultHerdrConfigPath({}, "linux");
+    assert.match(resLinux, /\.config[/\\]herdr[/\\]config\.toml$/);
   });
 });
 
@@ -61,6 +64,17 @@ describe("resolveHerdrTheme", () => {
 
   it("resolves third-party themes by name pattern or appearance fallback", () => {
     assert.equal(resolveHerdrTheme("day", "my-solarized-light-theme"), "solarized-light");
+    assert.equal(resolveHerdrTheme("night", "solarized-dark", "dark"), "solarized");
+    assert.equal(resolveHerdrTheme("day", "gruvbox-soft", "light"), "gruvbox-light");
+    assert.equal(resolveHerdrTheme("night", "gruvbox-soft", "dark"), "gruvbox");
+    assert.equal(resolveHerdrTheme("day", "catppuccin-latte", "light"), "catppuccin-latte");
+    assert.equal(resolveHerdrTheme("night", "catppuccin-mocha", "dark"), "catppuccin");
+    assert.equal(resolveHerdrTheme("day", "rose-pine-dawn", "light"), "rose-pine-dawn");
+    assert.equal(resolveHerdrTheme("night", "rose-pine-moon", "dark"), "rose-pine");
+    assert.equal(resolveHerdrTheme("day", "kanagawa-lotus", "light"), "kanagawa-lotus");
+    assert.equal(resolveHerdrTheme("night", "kanagawa-wave", "dark"), "kanagawa");
+    assert.equal(resolveHerdrTheme("day", "one-light", "light"), "one-light");
+    assert.equal(resolveHerdrTheme("night", "one-dark", "dark"), "one-dark");
     assert.equal(resolveHerdrTheme("day", "tokyo-custom", "light"), "tokyo-night-day");
     assert.equal(resolveHerdrTheme("night", "tokyo-custom", "dark"), "tokyo-night");
     assert.equal(resolveHerdrTheme("day", "custom-nord"), "nord");
@@ -99,7 +113,7 @@ shell = "pwsh"
     assert.match(result, /\[terminal\]/);
   });
 
-  it("inserts name under existing [theme] section if name was missing", () => {
+  it("inserts name and disables auto_switch under existing [theme] section", () => {
     const existing = `
 [theme]
 auto_switch = true
@@ -110,7 +124,41 @@ shell = "pwsh"
 
     const result = updateTomlTheme(existing, "gruvbox");
     assert.match(result, /name = "gruvbox"/);
-    assert.match(result, /auto_switch = true/);
+    assert.match(result, /auto_switch = false/);
+    assert.equal((result.match(/\[theme\]/g) || []).length, 1);
+  });
+
+  it("handles [theme] section headers with comments and whitespace", () => {
+    const existing = `
+[theme] # User theme configuration
+# Built-in themes: catppuccin, gruvbox, etc.
+name = "dracula"
+auto_switch = true
+
+[ui]
+sidebar_width = 24
+`.trim();
+
+    const result = updateTomlTheme(existing, "catppuccin-latte");
+    assert.match(result, /name = "catppuccin-latte"/);
+    assert.match(result, /auto_switch = false/);
+    assert.equal((result.match(/\[theme\]/g) || []).length, 1);
+    assert.match(result, /\[ui\]/);
+  });
+
+  it("handles top-level dotted theme.name and theme.auto_switch keys", () => {
+    const dotted = `
+theme.name = "nord"
+theme.auto_switch = true
+
+[terminal]
+shell = "bash"
+`.trim();
+
+    const result = updateTomlTheme(dotted, "solarized-light");
+    assert.match(result, /theme\.name = "solarized-light"/);
+    assert.match(result, /theme\.auto_switch = false/);
+    assert.ok(!result.includes("[theme]"), "does not append [theme] section when dotted key is present");
   });
 
   it("preserves CRLF line endings when present", () => {
