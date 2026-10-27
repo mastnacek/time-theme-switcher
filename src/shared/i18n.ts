@@ -60,14 +60,16 @@ export interface SwitcherStrings {
   compOn: string;
   compOff: string;
   compStatus: string;
+  compRefresh: string;
   compLang: string;
   compLangEn: string;
   compLangCs: string;
+  refreshed: (slotLabel: string, theme: string) => string;
 }
 
 const STRINGS: Record<Locale, SwitcherStrings> = {
   en: {
-    cmdDescription: "Time-based theme rotation: settings, on/off, status",
+    cmdDescription: "Time-based theme rotation: settings, on/off, status, refresh",
     on: "on",
     off: "off",
     activeMarker: " · ● ACTIVE",
@@ -77,9 +79,10 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     restoredTheme: (name) => `Theme rotation off — restored ${name}`,
     rotationDisabled: "Theme rotation off",
     tuiOnly: "The settings screen requires interactive TUI mode",
-    usage: "Usage: /theme-switcher [on|off|status|lang <code>]",
+    usage: "Usage: /theme-switcher [on|off|status|refresh|lang <code>]",
     langSet: (lang) => `Language set to ${lang}`,
     langUnknown: (code) => `Unknown language "${code}" (available: en, cs)`,
+    refreshed: (slotLabel, theme) => `Theme refreshed · slot ${slotLabel} (${theme})`,
     statusText: (state, slotLabel, latitude, longitude) =>
       `Rotation ${state} · slot ${slotLabel} · ${latitude}, ${longitude}`,
     settingsTitle: "Theme Switcher Settings",
@@ -115,12 +118,13 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     compOn: "Enable theme rotation",
     compOff: "Disable theme rotation",
     compStatus: "Show current rotation status",
+    compRefresh: "Force refresh theme, terminal colors & Herdr sync",
     compLang: "Set UI language (en | cs)",
     compLangEn: "English",
     compLangCs: "Czech (Česky)",
   },
   cs: {
-    cmdDescription: "Časová rotace témat: nastavení, zap/vyp, stav",
+    cmdDescription: "Časová rotace témat: nastavení, zap/vyp, stav, obnovení",
     on: "on",
     off: "off",
     activeMarker: " · ● AKTIVNÍ",
@@ -130,9 +134,10 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     restoredTheme: (name) => `Rotace témat vypnuta — obnoveno ${name}`,
     rotationDisabled: "Rotace témat vypnuta",
     tuiOnly: "Obrazovka nastavení vyžaduje interaktivní režim TUI",
-    usage: "Použití: /theme-switcher [on|off|status|lang <kód>]",
+    usage: "Použití: /theme-switcher [on|off|status|refresh|lang <kód>]",
     langSet: (lang) => `Jazyk nastaven na ${lang}`,
     langUnknown: (code) => `Neznámý jazyk "${code}" (dostupné: en, cs)`,
+    refreshed: (slotLabel, theme) => `Motiv obnoven · slot ${slotLabel} (${theme})`,
     statusText: (state, slotLabel, latitude, longitude) =>
       `Rotace ${state} · slot ${slotLabel} · ${latitude}, ${longitude}`,
     settingsTitle: "Nastavení přepínače témat",
@@ -168,6 +173,7 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     compOn: "Zapnout rotaci témat",
     compOff: "Vypnout rotaci témat",
     compStatus: "Zobrazit aktuální stav rotace",
+    compRefresh: "Vynutit obnovení motivu, barev terminálu a Herdru",
     compLang: "Nastavit jazyk rozhraní (en | cs)",
     compLangEn: "Angličtina (English)",
     compLangCs: "Čeština",

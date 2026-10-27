@@ -12,6 +12,8 @@ export interface Switcher {
   registerCommands(pi: ExtensionAPI): void;
 }
 
+export type { SwitcherDeps } from "./controller.ts";
+
 export function createSwitcher<Slot extends string>(deps: SwitcherDeps<Slot>): Switcher {
   const controller = createController(deps);
   return {

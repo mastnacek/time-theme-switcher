@@ -31,6 +31,13 @@ export interface SwitcherDeps<Slot extends string> {
   terminalStream?: TerminalStream;
 }
 
+export interface RefreshResult {
+  slot: string;
+  theme: string;
+  herdrTheme?: string;
+  success: boolean;
+}
+
 export interface SwitcherController {
   handleSessionStart(ctx: ExtensionContext): void;
   handleShutdown(): void;
@@ -40,6 +47,8 @@ export interface SwitcherController {
   setEnabled(enabled: boolean, ctx: ExtensionContext): void;
   /** Persist non-toggle updates and refresh the live copy. */
   savePrefs(update: Partial<Settings>): Settings;
+  /** Force refresh and re-synchronize the current theme, terminal, and Herdr. */
+  refresh(ui?: ExtensionUIContext): RefreshResult;
   /** Display label of the slot the current time/location maps to. */
   currentSlotLabel(): string;
   /** Recommended slot→theme mapping (shown as "Default" in the UI). */
@@ -88,10 +97,10 @@ export function createController<Slot extends string>(
     return name;
   }
 
-  function applySlot(ui: ExtensionUIContext): void {
+  function applySlot(ui: ExtensionUIContext, options: { silent?: boolean } = {}): boolean {
     const slot = currentSlot();
     const name = themeForSlot(slot);
-    if (lastApplied && lastApplied.slot === slot && lastApplied.theme === name) return;
+    if (lastApplied && lastApplied.slot === slot && lastApplied.theme === name) return true;
     const result = ui.setTheme(resolveAssignment(name));
     const s = stringsFor(settings.lang);
     if (result.success) {
@@ -116,9 +125,11 @@ export function createController<Slot extends string>(
         const herdrTheme = resolveHerdrTheme(slot, name, ui.theme?.appearance);
         syncHerdrTheme(herdrTheme);
       }
-      ui.notify(s.switchedTo(name));
+      if (!options.silent) ui.notify(s.switchedTo(name));
+      return true;
     } else {
-      ui.notify(s.themeApplyFailed(name), "error");
+      if (!options.silent) ui.notify(s.themeApplyFailed(name), "error");
+      return false;
     }
   }
 
@@ -232,6 +243,28 @@ export function createController<Slot extends string>(
       // Re-apply immediately when the assignment for the active slot changed.
       if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
       return settings;
+    },
+
+    refresh(ui?: ExtensionUIContext): RefreshResult {
+      settings = deps.getSettings();
+      lastApplied = undefined;
+      const targetUi = ui ?? activeUi;
+      const slot = currentSlot();
+      const name = themeForSlot(slot);
+      if (canTheme(targetUi)) {
+        activeUi = targetUi;
+        const success = applySlot(targetUi, { silent: true });
+        const herdrTheme = settings.syncHerdrTheme
+          ? resolveHerdrTheme(slot, name, targetUi.theme?.appearance)
+          : undefined;
+        return { slot, theme: name, herdrTheme, success };
+      }
+      let herdrTheme: string | undefined;
+      if (settings.syncHerdrTheme) {
+        herdrTheme = resolveHerdrTheme(slot, name);
+        syncHerdrTheme(herdrTheme);
+      }
+      return { slot, theme: name, herdrTheme, success: true };
     },
 
     currentSlotLabel: () => deps.themeLabels[currentSlot()],

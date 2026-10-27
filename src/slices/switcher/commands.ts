@@ -41,6 +41,7 @@ function complete(controller: SwitcherController, prefix: string): AutocompleteI
     { key: "on", description: s.compOn + (settings.enabled ? s.activeMarker : "") },
     { key: "off", description: s.compOff + (settings.enabled ? "" : s.activeMarker) },
     { key: "status", description: s.compStatus },
+    { key: "refresh", description: s.compRefresh },
     { key: "lang", description: `${s.compLang} · ${settings.lang}`, nonTerminal: true },
   ];
   const items = subs
@@ -88,6 +89,18 @@ async function handleCommand(
         );
       }
       return;
+    case "refresh":
+    case "apply": {
+      const res = controller.refresh(ctx.hasUI ? ctx.ui : undefined);
+      if (ctx.hasUI) {
+        if (res.success) {
+          ctx.ui.notify(s.refreshed(controller.currentSlotLabel(), res.theme));
+        } else {
+          ctx.ui.notify(s.themeApplyFailed(res.theme), "error");
+        }
+      }
+      return;
+    }
     case "lang": {
       const code = rest[0] ?? "";
       if (!(LOCALES as readonly string[]).includes(code)) {
@@ -104,11 +117,15 @@ async function handleCommand(
 }
 
 export function registerCommands(pi: ExtensionAPI, controller: SwitcherController): void {
-  pi.registerCommand("theme-switcher", {
+  const commandDef = {
     get description() {
       return stringsFor(controller.getSettings().lang).cmdDescription;
     },
-    getArgumentCompletions: (prefix) => complete(controller, prefix),
-    handler: (args, ctx) => handleCommand(controller, args.trim(), ctx),
-  });
+    getArgumentCompletions: (prefix: string) => complete(controller, prefix),
+    handler: (args: string, ctx: ExtensionCommandContext) =>
+      handleCommand(controller, args.trim(), ctx),
+  };
+
+  pi.registerCommand("theme-switcher", commandDef);
+  pi.registerCommand("tts", commandDef);
 }
