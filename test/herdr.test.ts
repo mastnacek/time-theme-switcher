@@ -126,6 +126,32 @@ describe("updateTomlTheme (parsed TOML structural verification)", () => {
     assert.ok(result.includes("auto_switch = false # follower"));
   });
 
+  it("handles '#' inside basic and literal strings without corrupting into fake comments (regression)", () => {
+    // Basic string containing '#' without comment
+    const basicNoComment = `[theme]\nname = "my#theme"\n`;
+    const res1 = updateTomlTheme(basicNoComment, "nord");
+    assert.equal((parse(res1) as any).theme?.name, "nord");
+    assert.ok(res1.includes('name = "nord"\n'));
+
+    // Basic string containing '#' with an inline comment after it
+    const basicWithComment = `[theme]\nname = "my#theme" # real comment\n`;
+    const res2 = updateTomlTheme(basicWithComment, "nord");
+    assert.equal((parse(res2) as any).theme?.name, "nord");
+    assert.ok(res2.includes('name = "nord" # real comment\n'));
+
+    // Literal single-quoted string containing '#' without comment
+    const literalNoComment = `[theme]\nname = 'my#literal#theme'\n`;
+    const res3 = updateTomlTheme(literalNoComment, "nord");
+    assert.equal((parse(res3) as any).theme?.name, "nord");
+    assert.ok(res3.includes('name = "nord"\n'));
+
+    // Literal single-quoted string containing '#' with an inline comment after it
+    const literalWithComment = `[theme]\nname = 'my#literal#theme' # literal comment\n`;
+    const res4 = updateTomlTheme(literalWithComment, "nord");
+    assert.equal((parse(res4) as any).theme?.name, "nord");
+    assert.ok(res4.includes('name = "nord" # literal comment\n'));
+  });
+
   it("handles top-level dotted theme.name and theme.auto_switch keys", () => {
     const dotted = `theme.name = "nord"\ntheme.auto_switch = true\n\n[terminal]\nshell = "bash"`;
     const result = updateTomlTheme(dotted, "solarized-light");

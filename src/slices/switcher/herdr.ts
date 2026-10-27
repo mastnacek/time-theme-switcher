@@ -95,8 +95,9 @@ export interface UpdateTomlThemeResult {
 }
 
 function extractInlineComment(line: string): string {
-  const match = /(\s*#.*)$/.exec(line);
-  return match ? match[1] : "";
+  const match =
+    /^\s*[\w.]+\s*=\s*(?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\s#]+)(\s*#.*)?$/.exec(line);
+  return match && match[1] ? match[1] : "";
 }
 
 /**
