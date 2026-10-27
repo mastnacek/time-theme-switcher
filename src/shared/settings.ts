@@ -31,6 +31,16 @@ export const DEFAULT_SLOT_THEMES: SlotThemes = {
   night: "tts-osaka-jade", // Osaka Jade
 };
 
+/**
+ * A temporary manual override of the solar slot (`/tts hold`): the sun
+ * cannot tell whether the room lights are on, the operator can.
+ */
+export interface HoldState {
+  slot: keyof SlotThemes;
+  /** ISO timestamp; once passed, solar rotation resumes. */
+  until: string;
+}
+
 export interface Settings {
   /** Master switch: when false, the extension never touches the theme. */
   enabled: boolean;
@@ -57,6 +67,11 @@ export interface Settings {
    * and reload via `herdr server reload-config`.
    */
   syncHerdrTheme: boolean;
+  /**
+   * Manual slot override, shared by every pi session through this config
+   * file; null when the sun decides.
+   */
+  hold: HoldState | null;
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -69,4 +84,5 @@ export const SETTINGS_DEFAULTS: Settings = {
   syncTerminalBg: true,
   syncTerminalFg: true,
   syncHerdrTheme: true,
+  hold: null,
 };

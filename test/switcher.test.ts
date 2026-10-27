@@ -50,6 +50,7 @@ function makeDeps(initialSettings: Record<string, unknown>, slot: () => string) 
     syncTerminalBg: false,
     syncTerminalFg: false,
     syncHerdrTheme: false,
+    hold: null as { slot: "dawn" | "day" | "dusk" | "night"; until: string } | null,
     ...initialSettings,
   };
   const nullStream = { isTTY: false, write: () => true };

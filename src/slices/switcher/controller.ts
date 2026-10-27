@@ -59,13 +59,31 @@ export interface SwitcherController {
   savePrefs(update: Partial<Settings>): Settings;
   /** Force refresh and re-synchronize the current theme, terminal, and Herdr. */
   refresh(ui?: ExtensionUIContext): RefreshResult;
-  /** Display label of the slot the current time/location maps to. */
+  /** Display label of the active slot (a hold wins over the sun). */
   currentSlotLabel(): string;
+  /** Display label of any slot. */
+  slotLabel(slot: string): string;
+  /** The hold in force now, or null when the solar slot rules. */
+  getHold(): ActiveHold | null;
+  /**
+   * Hold `slot` until `until`; without `until` the hold lasts until the
+   * solar slot next changes (e.g. lights on at dusk → until morning twilight).
+   */
+  hold(slot: keyof SlotThemes, until?: Date): ActiveHold;
+  /** End the hold and return to the solar slot; false when none was active. */
+  releaseHold(): boolean;
   /** Recommended slot→theme mapping (shown as "Default" in the UI). */
   getDefaultThemes(): Record<string, string>;
 }
 
+export interface ActiveHold {
+  slot: string;
+  until: Date;
+}
+
 const POLL_INTERVAL_MS = 60_000;
+/** Search horizon for the next natural slot change (polar summers aside). */
+const HOLD_SCAN_LIMIT_MIN = 36 * 60;
 
 export function createController<Slot extends string>(
   deps: SwitcherDeps<Slot>,
@@ -99,8 +117,30 @@ export function createController<Slot extends string>(
     }
   }
 
+  function naturalSlot(at: Date = new Date()): Slot {
+    return deps.getSlotForTime(at, settings.latitude, settings.longitude);
+  }
+
+  /** The hold in force at `at`, or null when there is none or it expired. */
+  function activeHold(at: Date = new Date()): ActiveHold | null {
+    const hold = settings.hold;
+    if (!hold) return null;
+    const until = new Date(hold.until);
+    return until.getTime() > at.getTime() ? { slot: hold.slot, until } : null;
+  }
+
   function currentSlot(): Slot {
-    return deps.getSlotForTime(new Date(), settings.latitude, settings.longitude);
+    return (activeHold()?.slot as Slot | undefined) ?? naturalSlot();
+  }
+
+  /** First minute after `from` whose solar slot differs from the one at `from`. */
+  function nextNaturalChange(from: Date): Date {
+    const start = naturalSlot(from);
+    for (let minute = 1; minute <= HOLD_SCAN_LIMIT_MIN; minute++) {
+      const at = new Date(from.getTime() + minute * 60_000);
+      if (naturalSlot(at) !== start) return at;
+    }
+    return new Date(from.getTime() + HOLD_SCAN_LIMIT_MIN * 60_000);
   }
 
   /** User assignment from settings, falling back to the default mapping. */
@@ -177,6 +217,10 @@ export function createController<Slot extends string>(
     lastApplied = undefined; // force apply + notify
     applySlot(ui);
     timer = setInterval(() => {
+      // Re-read the shared config: a hold set or released in another pi
+      // session lives there. An expired hold is cleared for everyone.
+      settings = deps.getSettings();
+      if (settings.hold && !activeHold()) settings = deps.saveSettings({ hold: null });
       if (canTheme(activeUi)) applySlot(activeUi);
     }, POLL_INTERVAL_MS);
   }
@@ -298,6 +342,24 @@ export function createController<Slot extends string>(
     },
 
     currentSlotLabel: () => deps.themeLabels[currentSlot()],
+
+    slotLabel: (slot) => deps.themeLabels[slot as Slot] ?? slot,
+
+    getHold: () => activeHold(),
+
+    hold(slot, until) {
+      const end = until ?? nextNaturalChange(new Date());
+      settings = deps.saveSettings({ hold: { slot, until: end.toISOString() } });
+      if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
+      return { slot, until: end };
+    },
+
+    releaseHold() {
+      const wasActive = activeHold() !== null;
+      settings = deps.saveSettings({ hold: null });
+      if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
+      return wasActive;
+    },
 
     getDefaultThemes: () => ({ ...deps.themeNames }),
   };

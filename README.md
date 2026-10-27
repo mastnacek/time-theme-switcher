@@ -97,10 +97,30 @@ required color keys, resolvable color vars, every slot default reachable).
   Subcommands work without the UI:
   - `/theme-switcher on` / `/theme-switcher off` — enable/disable rotation
   - `/theme-switcher status` — show state, current slot and coordinates
+  - `/theme-switcher hold <light|dark|dawn|day|dusk|night> [2h|90m|1h30m]` —
+    pin a slot for now (see below); `/theme-switcher hold off` ends it
   - `/theme-switcher lang en|cs` — switch the plugin's UI language
+
+`/tts` is a short alias for `/theme-switcher`.
 
 When rotation is switched off, the theme that was active before the rotation
 took over is restored.
+
+### Holding a slot
+
+The sun cannot see whether the room lights are on. When the rotation picks the
+wrong mood — lights on in the evening, working in the dark early in the
+morning — hold a slot:
+
+- `/tts hold light` (alias of `day`) or `/tts hold dark` (alias of `night`),
+  or any slot name.
+- Without a duration the hold lasts until the solar slot next changes, so a
+  hold set after dusk ends with the next morning's twilight. Add `2h`, `90m`
+  or `1h30m` for a fixed span.
+- The hold lives in the shared config file, so every running pi session
+  follows it within a minute, and it survives a restart. Once it expires the
+  rotation follows the sun again; `/tts hold off` ends it early.
+- `/tts status` shows the active hold and when it ends.
 
 ## Configuration
 

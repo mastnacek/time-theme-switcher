@@ -66,6 +66,18 @@ export interface SwitcherStrings {
   compLangEn: string;
   compLangCs: string;
   refreshed: (slotLabel: string, theme: string) => string;
+  // Manual hold (/tts hold)
+  compHold: string;
+  compHoldLight: string;
+  compHoldDark: string;
+  compHoldSlot: (slotLabel: string) => string;
+  compHoldOff: string;
+  holdSet: (slotLabel: string, until: string) => string;
+  holdReleased: (slotLabel: string) => string;
+  holdNone: string;
+  holdUsage: string;
+  holdRotationOff: string;
+  statusHold: (slotLabel: string, until: string) => string;
 }
 
 const STRINGS: Record<Locale, SwitcherStrings> = {
@@ -80,7 +92,7 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     restoredTheme: (name) => `Theme rotation off — restored ${name}`,
     rotationDisabled: "Theme rotation off",
     tuiOnly: "The settings screen requires interactive TUI mode",
-    usage: "Usage: /theme-switcher [on|off|status|refresh|lang <code>]",
+    usage: "Usage: /theme-switcher [on|off|status|refresh|hold <slot> [2h]|lang <code>]",
     langSet: (lang) => `Language set to ${lang}`,
     langUnknown: (code) => `Unknown language "${code}" (available: en, cs)`,
     refreshed: (slotLabel, theme) => `Theme refreshed · slot ${slotLabel} (${theme})`,
@@ -125,6 +137,17 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     compLang: "Set UI language (en | cs)",
     compLangEn: "English",
     compLangCs: "Czech (Česky)",
+    compHold: "Hold a theme for now (lights on, working in the dark)",
+    compHoldLight: "Light theme (Day slot) until the next solar change",
+    compHoldDark: "Dark theme (Night slot) until the next solar change",
+    compHoldSlot: (slotLabel) => `Hold the ${slotLabel} slot`,
+    compHoldOff: "End the hold, follow the sun again",
+    holdSet: (slotLabel, until) => `Holding ${slotLabel} until ${until}`,
+    holdReleased: (slotLabel) => `Hold ended · following the sun · ${slotLabel}`,
+    holdNone: "No hold is active",
+    holdUsage: "Usage: /tts hold <light|dark|dawn|day|dusk|night> [2h|90m|1h30m] · /tts hold off",
+    holdRotationOff: "Theme rotation is off — turn it on first (/tts on)",
+    statusHold: (slotLabel, until) => ` · hold ${slotLabel} until ${until}`,
   },
   cs: {
     cmdDescription: "Časová rotace témat: nastavení, zap/vyp, stav, obnovení",
@@ -137,7 +160,7 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     restoredTheme: (name) => `Rotace témat vypnuta — obnoveno ${name}`,
     rotationDisabled: "Rotace témat vypnuta",
     tuiOnly: "Obrazovka nastavení vyžaduje interaktivní režim TUI",
-    usage: "Použití: /theme-switcher [on|off|status|refresh|lang <kód>]",
+    usage: "Použití: /theme-switcher [on|off|status|refresh|hold <slot> [2h]|lang <kód>]",
     langSet: (lang) => `Jazyk nastaven na ${lang}`,
     langUnknown: (code) => `Neznámý jazyk "${code}" (dostupné: en, cs)`,
     refreshed: (slotLabel, theme) => `Motiv obnoven · slot ${slotLabel} (${theme})`,
@@ -182,6 +205,17 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     compLang: "Nastavit jazyk rozhraní (en | cs)",
     compLangEn: "Angličtina (English)",
     compLangCs: "Čeština",
+    compHold: "Podržet téma (svítím, pracuji potmě)",
+    compHoldLight: "Světlé téma (slot Den) do příští změny podle Slunce",
+    compHoldDark: "Tmavé téma (slot Noc) do příští změny podle Slunce",
+    compHoldSlot: (slotLabel) => `Podržet slot ${slotLabel}`,
+    compHoldOff: "Zrušit podržení, znovu podle Slunce",
+    holdSet: (slotLabel, until) => `Podrženo ${slotLabel} do ${until}`,
+    holdReleased: (slotLabel) => `Podržení zrušeno · znovu podle Slunce · ${slotLabel}`,
+    holdNone: "Žádné podržení není aktivní",
+    holdUsage: "Použití: /tts hold <light|dark|dawn|day|dusk|night> [2h|90m|1h30m] · /tts hold off",
+    holdRotationOff: "Rotace témat je vypnutá — nejdřív ji zapni (/tts on)",
+    statusHold: (slotLabel, until) => ` · podrženo ${slotLabel} do ${until}`,
   },
 };
 

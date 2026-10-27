@@ -23,6 +23,7 @@ import { dirname, join } from "node:path";
 import {
   DEFAULT_SLOT_THEMES,
   SETTINGS_DEFAULTS,
+  type HoldState,
   type Settings,
   type SlotThemes,
 } from "../../shared/settings.ts";
@@ -57,6 +58,18 @@ function mergeThemes(base: SlotThemes, raw: unknown): SlotThemes {
   return out;
 }
 
+/** A hold names a known slot and a parseable end time; null means none. */
+const isHold = (v: unknown): v is HoldState | null => {
+  if (v === null) return true;
+  if (typeof v !== "object") return false;
+  const hold = v as Record<string, unknown>;
+  return (
+    (SLOT_KEYS as readonly unknown[]).includes(hold.slot) &&
+    typeof hold.until === "string" &&
+    Number.isFinite(Date.parse(hold.until))
+  );
+};
+
 /** Single source of truth: every Settings key with validator + default. */
 const SCHEMA: { [K in keyof Settings]: FieldSpec<Settings[K]> } = {
   enabled: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.enabled },
@@ -72,6 +85,7 @@ const SCHEMA: { [K in keyof Settings]: FieldSpec<Settings[K]> } = {
   syncTerminalBg: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncTerminalBg },
   syncTerminalFg: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncTerminalFg },
   syncHerdrTheme: { isValid: isBoolean, defaultValue: SETTINGS_DEFAULTS.syncHerdrTheme },
+  hold: { isValid: isHold, defaultValue: SETTINGS_DEFAULTS.hold },
 };
 
 /** Fresh defaults copy (nested `themes` must not be a shared reference). */
@@ -102,6 +116,7 @@ function sanitize(raw: unknown): Settings {
     syncTerminalBg: applySpec(SCHEMA.syncTerminalBg, source.syncTerminalBg),
     syncTerminalFg: applySpec(SCHEMA.syncTerminalFg, source.syncTerminalFg),
     syncHerdrTheme: applySpec(SCHEMA.syncHerdrTheme, source.syncHerdrTheme),
+    hold: applySpec(SCHEMA.hold, source.hold),
   };
 }
 

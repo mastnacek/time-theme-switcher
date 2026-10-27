@@ -46,6 +46,7 @@ function makeDeps(
     syncTerminalBg: false,
     syncTerminalFg: false,
     syncHerdrTheme: true,
+    hold: null as { slot: "dawn" | "day" | "dusk" | "night"; until: string } | null,
     ...initialSettings,
   };
   const deps: SwitcherDeps<string> = {
