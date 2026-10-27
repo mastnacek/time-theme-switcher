@@ -67,9 +67,24 @@ export function createController<Slot extends string>(
   /** Last successfully applied slot+theme, for change detection. */
   let lastApplied: { slot: Slot; theme: string } | undefined;
   let activeUi: ExtensionUIContext | undefined;
+  let autoSwitchNotified = false;
 
   const canTheme = (ui: ExtensionUIContext | undefined): ui is ExtensionUIContext =>
     typeof ui?.setTheme === "function";
+
+  function handleHerdrSync(herdrTheme: string, ui?: ExtensionUIContext): void {
+    const result = syncHerdrTheme(herdrTheme);
+    if (result.autoSwitchDisabled && !autoSwitchNotified) {
+      autoSwitchNotified = true;
+      console.info(
+        "[time-theme-switcher] Disabled Herdr auto_switch in config.toml to follow circadian theme schedule",
+      );
+      if (canTheme(ui)) {
+        const s = stringsFor(settings.lang);
+        ui.notify(s.herdrAutoSwitchDisabled);
+      }
+    }
+  }
 
   function currentSlot(): Slot {
     return deps.getSlotForTime(new Date(), settings.latitude, settings.longitude);
@@ -123,7 +138,7 @@ export function createController<Slot extends string>(
       }
       if (settings.syncHerdrTheme) {
         const herdrTheme = resolveHerdrTheme(slot, name, ui.theme?.appearance);
-        syncHerdrTheme(herdrTheme);
+        handleHerdrSync(herdrTheme, ui);
       }
       if (!options.silent) ui.notify(s.switchedTo(name));
       return true;
@@ -238,7 +253,7 @@ export function createController<Slot extends string>(
           lastApplied.theme,
           activeUi?.theme?.appearance,
         );
-        syncHerdrTheme(herdrTheme);
+        handleHerdrSync(herdrTheme, activeUi);
       }
       // Re-apply immediately when the assignment for the active slot changed.
       if (timer !== null && canTheme(activeUi)) applySlot(activeUi);
@@ -262,7 +277,7 @@ export function createController<Slot extends string>(
       let herdrTheme: string | undefined;
       if (settings.syncHerdrTheme) {
         herdrTheme = resolveHerdrTheme(slot, name);
-        syncHerdrTheme(herdrTheme);
+        handleHerdrSync(herdrTheme, targetUi);
       }
       return { slot, theme: name, herdrTheme, success: true };
     },

@@ -10,6 +10,7 @@ import {
   resolveHerdrTheme,
   syncHerdrTheme,
   updateTomlTheme,
+  updateTomlThemeDetails,
 } from "../src/slices/switcher/herdr.ts";
 
 describe("defaultHerdrConfigPath", () => {
@@ -80,6 +81,17 @@ describe("resolveHerdrTheme", () => {
     assert.equal(resolveHerdrTheme("day", "custom-nord"), "nord");
     assert.equal(resolveHerdrTheme("unknown", "unrecognized", "light"), "solarized-light");
     assert.equal(resolveHerdrTheme("unknown", "unrecognized", "dark"), "catppuccin");
+  });
+
+  it("does not falsely match substring 'one' in other themes (regression: everforest-honey)", () => {
+    assert.notEqual(resolveHerdrTheme("night", "everforest-honey"), "one-dark");
+    assert.equal(resolveHerdrTheme("night", "everforest-honey"), "rose-pine");
+    assert.equal(resolveHerdrTheme("day", "everforest-honey"), "solarized-light");
+  });
+
+  it("prioritizes explicit 'dark' in theme name over day/dawn substring (regression: daybreak-dark)", () => {
+    assert.equal(resolveHerdrTheme("night", "daybreak-dark"), "rose-pine");
+    assert.notEqual(resolveHerdrTheme("night", "daybreak-dark"), "solarized-light");
   });
 });
 
@@ -167,6 +179,42 @@ shell = "bash"
     assert.ok(res.includes("\r\n"), "maintains CRLF");
     assert.match(res, /name = "gruvbox"/);
   });
+
+  it("terminates [theme] at array-of-tables and preserves keybinding name (regression: Repro A)", () => {
+    const reproA = `[theme]\nauto_switch = false\n\n[[keys.command]]\nkey = "prefix+k"\nname = "keep-me"\n`;
+    const res = updateTomlTheme(reproA, "nord");
+    assert.match(res, /\[theme\]\s*\nauto_switch = false\s*\nname = "nord"/);
+    assert.match(res, /\[\[keys\.command\]\]\s*\nkey = "prefix\+k"\s*\nname = "keep-me"/);
+    assert.ok(res.includes('name = "keep-me"'), "preserves original keybinding name");
+    assert.equal((res.match(/name = "nord"/g) || []).length, 1);
+  });
+
+  it("inserts missing theme name inside [theme] before subsequent array-of-tables (regression: Repro B)", () => {
+    const reproB = `[theme]\n\n[[keys.command]]\nkey = "prefix+k"\n`;
+    const res = updateTomlTheme(reproB, "nord");
+    assert.match(res, /\[theme\]\s*\nname = "nord"/);
+    assert.match(res, /\[\[keys\.command\]\]\s*\nkey = "prefix\+k"/);
+    assert.ok(!res.endsWith('name = "nord"\n'), "name is not at the end of file inside keys.command");
+  });
+
+  it("handles top-level dotted theme.* key without theme.name and avoids duplicate [theme] (regression: Repro C)", () => {
+    const reproC = `theme.auto_switch = true\n[ui]\nx = 1\n`;
+    const details = updateTomlThemeDetails(reproC, "nord");
+    assert.equal(details.autoSwitchDisabled, true);
+    const res = details.content;
+    assert.match(res, /theme\.auto_switch = false/);
+    assert.match(res, /theme\.name = "nord"/);
+    assert.match(res, /\[ui\]\s*\nx = 1/);
+    assert.ok(!res.includes("[theme]"), "does not append duplicate [theme] table");
+  });
+
+  it("handles inline table theme = { ... } at top level", () => {
+    const inline = `theme = { auto_switch = true }\n[terminal]\nshell = "bash"\n`;
+    const details = updateTomlThemeDetails(inline, "nord");
+    assert.equal(details.autoSwitchDisabled, true);
+    assert.match(details.content, /theme = \{ name = "nord", auto_switch = false \}/);
+    assert.ok(!details.content.includes("[theme]"));
+  });
 });
 
 describe("syncHerdrTheme", () => {
@@ -184,6 +232,7 @@ describe("syncHerdrTheme", () => {
       // Second sync with same theme should report updated: false
       const res2 = syncHerdrTheme("solarized-light", { configPath, reloadServer: false });
       assert.equal(res2.updated, false);
+      assert.equal(res2.autoSwitchDisabled, false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

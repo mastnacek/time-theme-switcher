@@ -141,8 +141,12 @@ defaults on first run):
   notifying the running Herdr server via `herdr server reload-config`.
   - Supports light counterparts (`gruvbox-light`, `catppuccin-latte`, `solarized-light`,
     `tokyo-night-day`, `rose-pine-dawn`, `kanagawa-lotus`, `one-light`).
-  - Sets `auto_switch = false` in `[theme]` so Herdr honors the 4-phase circadian theme
-    instead of its binary terminal-appearance fallback.
+  - Sets `auto_switch = false` in `[theme]` (or `theme.auto_switch = false`) and
+    notifies/logs once when doing so, because Herdr's built-in `auto_switch` toggles
+    `dark_name`/`light_name` based solely on terminal appearance, which would override
+    and conflict with the 4-phase circadian rotation.
+  - Safely parses TOML config: preserves existing keybindings (`[[keys.command]]`),
+    table sections, and inline or dotted keys without emitting duplicate table definitions.
   - For remote sessions (`herdr --remote`), Herdr themes are rendered by the local client,
     so settings apply to the local configuration where the client runs.
 - `latitude` / `longitude` — your location (-90..90 / -180..180)

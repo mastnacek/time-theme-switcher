@@ -34,6 +34,7 @@ export interface SwitcherStrings {
   syncTerminalFgDesc: string;
   syncHerdrThemeLabel: string;
   syncHerdrThemeDesc: string;
+  herdrAutoSwitchDisabled: string;
   latitudeLabel: string;
   latitudeDesc: string;
   longitudeLabel: string;
@@ -94,6 +95,8 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     syncTerminalFgDesc: "Synchronize host terminal text/font color with active theme (OSC 10)",
     syncHerdrThemeLabel: "Herdr multiplexer theme",
     syncHerdrThemeDesc: "Synchronize Herdr theme in config.toml and reload live",
+    herdrAutoSwitchDisabled:
+      "Herdr auto_switch was disabled in config.toml to follow the circadian theme schedule",
     latitudeLabel: "Latitude",
     latitudeDesc: "Geographic latitude (-90 to 90), e.g. 50.0755 for Prague",
     longitudeLabel: "Longitude",
@@ -149,6 +152,8 @@ const STRINGS: Record<Locale, SwitcherStrings> = {
     syncTerminalFgDesc: "Synchronizovat barvu písma/textu terminálu s aktivním tématem (OSC 10)",
     syncHerdrThemeLabel: "Motiv Herdru",
     syncHerdrThemeDesc: "Synchronizovat motiv multiplexeru Herdr v config.toml a aplikovat za běhu",
+    herdrAutoSwitchDisabled:
+      "Volba auto_switch v Herdru byla vypnuta v config.toml pro zachování cirkadiánního plánu",
     latitudeLabel: "Zeměpisná šířka",
     latitudeDesc: "Zeměpisná šířka (-90 až 90), např. 50.0755 pro Prahu",
     longitudeLabel: "Zeměpisná délka",
