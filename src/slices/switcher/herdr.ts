@@ -21,7 +21,8 @@ export const DEFAULT_HERDR_THEMES: Record<string, string> = {
  * Default config path for Herdr multiplexer:
  * 1. HERDR_CONFIG_PATH env var if set.
  * 2. %APPDATA%\herdr\config.toml on Windows (win32).
- * 3. $XDG_CONFIG_HOME/herdr/config.toml or ~/.config/herdr/config.toml on Unix / macOS.
+ * 3. ~/Library/Application Support/herdr/config.toml on macOS (darwin).
+ * 4. $XDG_CONFIG_HOME/herdr/config.toml or ~/.config/herdr/config.toml on Linux / other Unix.
  */
 export function defaultHerdrConfigPath(
   env: NodeJS.ProcessEnv = process.env,
@@ -33,6 +34,9 @@ export function defaultHerdrConfigPath(
   if (platform === "win32") {
     const appData = env.APPDATA || join(homedir(), "AppData", "Roaming");
     return join(appData, "herdr", "config.toml");
+  }
+  if (platform === "darwin") {
+    return join(homedir(), "Library", "Application Support", "herdr", "config.toml");
   }
   if (env.XDG_CONFIG_HOME) {
     return join(env.XDG_CONFIG_HOME, "herdr", "config.toml");
@@ -78,6 +82,7 @@ export function resolveHerdrTheme(
  * Updates or inserts the [theme] name = "..." in a TOML string.
  */
 export function updateTomlTheme(tomlContent: string, newTheme: string): string {
+  const eol = tomlContent.includes("\r\n") ? "\r\n" : "\n";
   const lines = tomlContent.split(/\r?\n/);
   let inTheme = false;
   let nameReplaced = false;
@@ -110,11 +115,11 @@ export function updateTomlTheme(tomlContent: string, newTheme: string): string {
 
   if (!hasThemeSection) {
     const trimmed = tomlContent.trim();
-    const prefix = trimmed ? `${trimmed}\n\n` : "";
-    return `${prefix}[theme]\nname = "${newTheme}"\n`;
+    const prefix = trimmed ? `${trimmed}${eol}${eol}` : "";
+    return `${prefix}[theme]${eol}name = "${newTheme}"${eol}`;
   }
 
-  return outputLines.join("\n");
+  return outputLines.join(eol);
 }
 
 export interface SyncHerdrOptions {
@@ -146,10 +151,28 @@ export function syncHerdrTheme(
 
     if (reloadServer) {
       try {
+        const pathSeparator = process.platform === "win32" ? ";" : ":";
+        const extraPaths =
+          process.platform === "win32"
+            ? [
+                join(homedir(), ".herdr", "bin"),
+                join(homedir(), ".cargo", "bin"),
+              ]
+            : [
+                join(homedir(), ".local", "bin"),
+                join(homedir(), ".cargo", "bin"),
+                "/usr/local/bin",
+              ];
+        const currentPath = process.env.PATH ?? "";
+        const envPath = `${currentPath}${pathSeparator}${extraPaths.join(pathSeparator)}`;
+
         const child = execFile(
           "herdr",
           ["server", "reload-config"],
-          { windowsHide: true },
+          {
+            windowsHide: true,
+            env: { ...process.env, PATH: envPath },
+          },
           () => {
             // Non-blocking: ignore error when Herdr server is not running or CLI is absent
           },

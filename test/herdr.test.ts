@@ -43,6 +43,11 @@ describe("defaultHerdrConfigPath", () => {
     const resDefault = defaultHerdrConfigPath({}, "linux");
     assert.match(resDefault, /\.config[/\\]herdr[/\\]config\.toml$/);
   });
+
+  it("resolves to ~/Library/Application Support/herdr/config.toml on macOS", () => {
+    const resDarwin = defaultHerdrConfigPath({}, "darwin");
+    assert.match(resDarwin, /Library[/\\]Application Support[/\\]herdr[/\\]config\.toml$/);
+  });
 });
 
 describe("resolveHerdrTheme", () => {
@@ -106,6 +111,13 @@ shell = "pwsh"
     const result = updateTomlTheme(existing, "gruvbox");
     assert.match(result, /name = "gruvbox"/);
     assert.match(result, /auto_switch = true/);
+  });
+
+  it("preserves CRLF line endings when present", () => {
+    const crlf = "[theme]\r\nname = \"dracula\"\r\n\r\n[terminal]\r\nshell = \"pwsh\"\r\n";
+    const res = updateTomlTheme(crlf, "gruvbox");
+    assert.ok(res.includes("\r\n"), "maintains CRLF");
+    assert.match(res, /name = "gruvbox"/);
   });
 });
 
