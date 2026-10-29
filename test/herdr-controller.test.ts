@@ -84,8 +84,8 @@ describe("controller Herdr synchronization integration", () => {
     currentSlot = "night";
     // savePrefs triggers re-evaluation if slot assignment changed, or refresh
     const refreshRes = controller.refresh(ui as never);
-    assert.equal(refreshRes.herdrTheme, "rose-pine");
-    assert.deepEqual(syncCalls, ["solarized-light", "rose-pine"]);
+    assert.equal(refreshRes.herdrTheme, "osaka-jade");
+    assert.deepEqual(syncCalls, ["solarized-light", "osaka-jade"]);
 
     controller.handleShutdown();
   });

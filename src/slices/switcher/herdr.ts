@@ -21,7 +21,7 @@ export const DEFAULT_HERDR_THEMES: Record<string, string> = {
   dawn: "gruvbox",
   day: "solarized-light",
   dusk: "catppuccin",
-  night: "rose-pine",
+  night: "osaka-jade",
 };
 
 /**
@@ -88,7 +88,8 @@ export function resolveHerdrTheme(
   if (lower === "tts-day") return "solarized-light";
   if (lower === "tts-dawn") return "gruvbox";
   if (lower === "tts-dusk") return "catppuccin";
-  if (lower === "tts-night" || lower === "tts-osaka-jade") return "rose-pine";
+  if (lower === "tts-night") return "rose-pine";
+  if (lower === "tts-osaka-jade" || lower === "osaka-jade") return "osaka-jade";
 
   // Family checks with light/dark counterparts
   if (lower.includes("solarized")) return isLight ? "solarized-light" : "solarized";

@@ -74,7 +74,7 @@ describe("resolveHerdrTheme", () => {
     assert.equal(resolveHerdrTheme("dawn", "tts-dawn"), "gruvbox");
     assert.equal(resolveHerdrTheme("dusk", "tts-dusk"), "catppuccin");
     assert.equal(resolveHerdrTheme("night", "tts-night"), "rose-pine");
-    assert.equal(resolveHerdrTheme("night", "tts-osaka-jade"), "rose-pine");
+    assert.equal(resolveHerdrTheme("night", "tts-osaka-jade"), "osaka-jade");
   });
 
   it("resolves third-party themes by name pattern or appearance fallback", () => {
@@ -99,7 +99,7 @@ describe("resolveHerdrTheme", () => {
 
   it("does not falsely match substring 'one' in other themes (regression: everforest-honey)", () => {
     assert.notEqual(resolveHerdrTheme("night", "everforest-honey"), "one-dark");
-    assert.equal(resolveHerdrTheme("night", "everforest-honey"), "rose-pine");
+    assert.equal(resolveHerdrTheme("night", "everforest-honey"), "osaka-jade");
     assert.equal(resolveHerdrTheme("day", "everforest-honey"), "solarized-light");
   });
 
